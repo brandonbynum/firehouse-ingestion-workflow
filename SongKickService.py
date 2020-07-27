@@ -1,13 +1,23 @@
-import asyncio
 import aiohttp
+import asyncio
 import math
+import peewee
+from peewee import *
 
-class SongKickFilter():
+class SongKickService():
     def __init__(self, metro_area_names):
         self.metro_area_ids = []
         self.metro_area_names = metro_area_names
         self.api_key = 'fUiSaa7nFB1tDdh7'
 
+    def transform(self, events: list):
+        new_events = []
+        for event in events:
+            new_event = {
+                
+            }
+            
+            songkick_event_id = event.
     async def get_request(self, url: str):
         async with aiohttp.ClientSession() as session:
             try:
@@ -15,7 +25,6 @@ class SongKickFilter():
                 # Note that this may raise an exception for non-2xx responses
                 # You can either handle that here, or pass the exception through
                 data = await resp.json()
-                print(f"Received data for {url}")
             except Exception as err:
                 print(f'Other error occurred: {err}')
                 return err
@@ -47,15 +56,6 @@ class SongKickFilter():
             self.metro_area_ids[metro_area_name] = metro_area_id
 
     async def get_metro_area_events(self):
-        # =============== METHODS ===============
-        def has_artists(event):
-            if len(event['performance']) > 0:
-                return event
-
-        def filter_events_without_artist(events):
-            results = list(filter(has_artists, events))
-            return results
-
         async def call_remaining_pages(num_of_pages, metro_id):
             tasks = []
             print('building urls\n')
@@ -70,14 +70,15 @@ class SongKickFilter():
             remaining_events = []
             for index, page_resp in enumerate(paged_data):
                 page_resp_event_list = page_resp['results']['event']
-                filtered_events = filter_events_without_artist(page_resp_event_list)
+                filtered_events = filter_events_without_artist(
+                    page_resp_event_list)
                 remaining_events += filtered_events
             return remaining_events
-        # =============== LOGIC ===============
+
         if len(self.metro_area_ids) > 1:
             tasks = []
             filtered_metro_events = {}
-            # call event process for each city
+
             for metro_name in self.metro_area_ids:
                 events_url = f'https://api.songkick.com/api/3.0/metro_areas/{self.metro_area_ids[metro_name]}/calendar.json?apikey={self.api_key}'
                 metro_event_data = await self.get_request(events_url)
@@ -96,20 +97,21 @@ class SongKickFilter():
 
         return filtered_metro_events
 
+    def has_artists(self, event):
+            if len(event['performance']) > 0:
+                return event
+
+    def filter_events_without_artist(self, events):
+        results = list(filter(has_artists, events))
+        return results
+
+
 async def main():
-    metro_area_names = ['Phoenix', 'Tucson']
-    instance = SongKickFilter(metro_area_names)
-
+    instance = SongKickService()
     await instance.get_metroarea_ids()
-    metro_area_events = await instance.get_metro_area_events() 
+    metro_area_events = await instance.get_metro_area_events()
 
-    total_events = 0
-    for metro_area_name in metro_area_events:
-        total_events += len(metro_area_events[metro_area_name])
-        print(f'{metro_area_name}: {len(metro_area_events[metro_area_name])}')
-    print(f'total events: {total_events}')
+    print(metro_area_events['Phoenix'][0].keys())
 
-main = main()
-asyncio.run(main)
-
-    
+if __name__ == '__main__':
+    asyncio.run(main())
