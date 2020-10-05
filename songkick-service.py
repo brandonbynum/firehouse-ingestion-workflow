@@ -9,34 +9,28 @@ from states import states
 from timer import Timer
         
 class SongKickService():
-    def __init__(self, metro_area_names):
+    def __init__(self, metro_name):
         self.api_key = 'fUiSaa7nFB1tDdh7'
-        self.metro_area_data = {}
-        self.metro_area_names = metro_area_names
-        
-        for name in self.metro_area_names:
-            self.metro_area_data[name] = {
-                'id': None,
-                'songkick_id': None,
-                'events': [],
-                'cities': [],
-                'venues': [],
-            }
 
-        for metro_name in metro_area_names:
-            metro_id_query = MetropolitanArea.select().where(MetropolitanArea.metropolitan_name == metro_name)
-            self.metro_area_data[metro_name]['id'] = metro_id_query.get()
+        self.metro_id = None
+        self.sk_id = None
+        self.cities = []
+        self.sk_events =[]
+        self.metro_name = metro_name
+        self.venues = {}
 
-            cities_query = Cities.select().where(Cities.metropolitan == self.metro_area_data[metro_name]['id'])
-            cities = [city for city in cities_query]
-            self.metro_area_data[metro_name]['cities'] = cities
+        metro_id_query = MetropolitanArea.select().where(MetropolitanArea.metropolitan_name == metro_name)
+        self.metro_id = metro_id_query.get()
 
-            existing_venues_in_city_query = Venues.select().where(Venues.city.in_(cities))
-            self.metro_area_data[metro_name]['venues'] = {}
-            for venue in existing_venues_in_city_query:
-                self.metro_area_data[metro_name]['venues'][venue.venue_id] = venue.venue_name
+        cities_query = Cities.select().where(Cities.metropolitan == self.metro_id)
+        cities = [city for city in cities_query]
+        self.metro_cities = cities
 
-    async def songkick_get_request(self, url: str):
+        existing_venues_in_city_query = Venues.select().where(Venues.city.in_(cities))
+        for venue in existing_venues_in_city_query:
+            self.venues[venue.venue_id] = venue.venue_name
+
+    async def sk_get_request(self, url: str):
         async with aiohttp.ClientSession() as session:
             try:
                 resp = await session.request('GET', url)
@@ -49,70 +43,80 @@ class SongKickService():
             else:
                 return data['resultsPage']
 
-    def has_artist(self, event):
-        if len(event['performance']) > 0:
-            return event
+    # def prepare_data(self):
+    #     for metro_name in self.metro_area_names:
+    #         print(f'PREPARING DATA: {metro_name}')
+    #         metro_data = self.metro_area_data[metro_name]
 
-    def prepare_data(self):
-        events_to_save = set()
-        cities_to_save = {}
-        venues_to_save = {}
-        for metro_name in self.metro_area_names:
-            metro_data = self.metro_area_data[metro_name]
-            for event in metro_data['events']:
-                #print(json.dumps(event, sort_keys=True, indent=4))
-                city_name = event['location']['city'].split(',')[0]
-                state_abbreveation = event['location']['city'].split(',')[1].strip()
-                venue_name = event['venue']['displayName']
+    #         events_to_save = []
+    #         saved_cities = set()
+    #         saved_venues = set()
+    #         for event in metro_data['events']:
+    #             #print(json.dumps(event, sort_keys=True, indent=4))
+    #             city_name = event['location']['city'].split(',')[0]
+    #             state_abbreveation = event['location']['city'].split(',')[1].strip()
+    #             venue_name = event['venue']['displayName']
 
-                existing_city_names = {city.city_name for city in metro_data['cities']}
-                if city_name not in existing_city_names and city_name not in set(cities_to_save.keys()):
-                    cities_to_save[city_name] = (
-                        Cities(
-                            city_name = city_name,
-                            city_state = states[state_abbreveation],
-                            city_country = 'United States',
-                            metropolitan = self.metro_area_data[metro_name]['id']
-                        )
-                    )
+    #             # Check if city name exists
+    #             existing_city_names = {city.city_name for city in metro_data['cities']}
+    #             if city_name not in existing_city_names and city_name not in saved_cities:
+    #                 Cities(
+    #                     city_name = city_name,
+    #                     city_state = states[state_abbreveation],
+    #                     city_country = 'United States',
+    #                     metropolitan = self.metro_area_data[metro_name]['id']
+    #                 ).save()
+    #                 saved_cities.add(city_name)
+    #                 print(f'{city_name} saved to the database.')
+    #             elif city_name in saved_cities:
+    #                 print(f'{city_name} saved in this sessioin')
+    #             elif city_name in existing_city_names:
+    #                 print(f'{city_name} already exists in the database prior to this session.')
+
                 
-                existing_venue_names = [metro_data['venues'][venue] for venue in set(metro_data['venues'])]
-                if venue_name not in existing_venue_names and venue_name not in set(venues_to_save.keys()):
-                    city_id = [city for city in metro_data['cities'] if city.city_name == city_name][0]
-                    # venues_to_save[venue_name] = (
-                    #     Venues(
-                    #         city = city_id,
-                    #         venue_name = venue_name
-                    #     )
-                    # )
+    #             # Check if venue exists, if not create the venue and save
+    #             existing_venue_names = [metro_data['venues'][venue] for venue in set(metro_data['venues'])]
+    #             if venue_name not in existing_venue_names and venue_name not in saved_venues:
+    #                 city_id = [city for city in metro_data['cities'] if city.city_name == city_name][0]
+    #                 Venues(
+    #                     city = city_id,
+    #                     venue_name = venue_name,
+    #                     venue_address = 'N/A',
+    #                 ).save()
+    #                 saved_venues.add(venue_name)
+    #                 print(f'{venue_name} saved to the database.')
+    #                 # TODO: Log the venue creation and that an address is needed
+    #             elif venue_name in saved_venues:
+    #                 print(f'{venue_name} saved in this sessioin')
+    #             elif venue_name in existing_venue_names:
+    #                 print(f'{venue_name} already exists in the database prior to this session.')
+                    
+    #             # TODO: Log the event and that ticket link is needed
+    #             venue_model = Venues.select().where(Venues.venue_name == venue_name).get()
+                
+    #             event_model = {
+    #                 'venue': venue_model.venue_id,
+    #                 'event_date': event['start']['date'],
+    #                 'event_name': event['displayName'],
+    #                 'event_start_at': event['start']['time'],
+    #                 'event_type': 'Concert',
+    #                 'tickets_link': event['uri'],
+    #             }
 
-                    Venues(
-                        venue_id = Venues.select(fn.Max(Venues.venue_id))[0].venue_id + 1,
-                        city = city_id,
-                        venue_name = venue_name,
-                        venue_address = '',
-                    ).save()
-                    # TODO: Log the venue creation and that an address is needed
+    #             if event_model not in events_to_save:
+    #                 print('event queued to save')
+    #                 events_to_save.append(event_model)
 
-                # TODO: Log the event and that ticket link is needed
-                venue_model = Venues.select().where(Venues.venue_name == venue_name).get()
-
-                print('venue_model', venue_model)
-                break
-                events_to_save.add(
-                    Events(
-                        venue = venue_model,
-                        event_date = event['start']['date'],
-                        event_name = event['displayName'],
-                        event_start_at = event['start']['time'],
-                        event_type = 'Concert',
-                        tickets_link = event['uri'],
-                    )
-                )
-
-                print(len(events_to_save))
-                print(len(cities_to_save))
-                print(len(venues_to_save))
+            # Events.insert_many(
+            #     events_to_save, 
+            #     fields=[
+            #         Events.venue, 
+            #         Events.event_date,
+            #         Events.event_name,
+            #         Events.event_start_at,
+            #         Events.event_type,
+            #         Events.tickets_link,
+            #     ]).execute()
 
     ## TODO: API SOLUTION
     #   goal: remove fetched songkick events that already exist
@@ -129,14 +133,14 @@ class SongKickService():
         timer = Timer('REMOVE NON ELECTRONIC EVENTS')
         timer.begin()
         existing_artists_query = Artists.select()
-        existing_artists_names = {artist.artist_name.strip() for artist in existing_artists_query}
+        existing_artists_names = {artist.artist_name for artist in existing_artists_query}
+        print(f'existing artists: {existing_artists_names}')
         metro_area_names = set(self.metro_area_data.keys())
 
         for metro_area_index, metro_area_name in enumerate(self.metro_area_names):
             retrieved_events = self.metro_area_data[metro_area_name]['events']
             matching_events = [event for event in retrieved_events if event['performance'][0]['artist']['displayName'] in existing_artists_names]
             self.metro_area_data[metro_area_name]['events'] = matching_events
-            
         timer.stop()
         timer.results()
         timer.reset()
@@ -161,91 +165,97 @@ class SongKickService():
         timer.begin()
         #connection = pg_db.connect()
         for metro_area_name in self.metro_area_data:
+            print(f'looping through {metro_area_name}')
             existing_venues_in_metro = self.metro_area_data[metro_area_name]['venues']
             venue_ids = list(existing_venues_in_metro.keys())
+
             events_query = Events.select().where(Events.venue.in_(venue_ids))
             existing_events_in_metro_area = [event for event in events_query]
 
-            filitered_events = []
+            filtered_events = set()
+            print(f'loopinig through retrieved songkick events: {len(self.metro_area_data[metro_area_name]["events"])}')
             # loop through all songkick fetched events
-            for index, retrieved_event in enumerate(self.metro_area_data[metro_area_name]['events']):
+            index = 0
+            while index < len(self.metro_area_data[metro_area_name]['events']):
+            #for index, retrieved_event in enumerate(self.metro_area_data[metro_area_name]['events']):
+                retrieved_event = self.metro_area_data[metro_area_name]['events'][index]
+                print(f'\nretrieved event being checked: {retrieved_event["displayName"]} / INDEX - {index}')
                 retrieved_event_venue_name = retrieved_event['venue']['displayName']
                 retrieved_event_date = retrieved_event['start']['date']
                 retrieved_event_start_time = retrieved_event['start']['time']
+
                 # loop through all existing events
-                for existing_event in existing_events_in_metro_area:
+                print(f'looping through all existing events: {len(existing_events_in_metro_area)}')
+                position = 0
+                while position < len(existing_events_in_metro_area):
+                    existing_event = existing_events_in_metro_area[position]
+                    print(f'existing event: {existing_event.event_name} / POSITION: {position}')
                     existing_event_date = str(existing_event.event_date)[:10]
                     existing_event_start_at = str(existing_event.event_start_at)
                     existing_event_venue_name = [existing_venues_in_metro[venue] for venue in existing_venues_in_metro if venue == existing_event.venue.venue_id][0]
-
+                    
+                    print(len(filtered_events))
                     # Compare venue name, date, start time of the two events, artist name
+                    print(
+                        f'ret/existing venue names: {retrieved_event_venue_name}/{existing_event_venue_name}'
+                    )
                     if retrieved_event_venue_name == existing_event_venue_name and retrieved_event_date == existing_event_date and retrieved_event_start_time == existing_event_start_at:
-                        self.metro_area_data[metro_area_name]['events'][index]
-                        del self.metro_area_data[metro_area_name]['events'][index]
+                        print(f'event exists: {existing_event.event_name} will not be added.')
+                        index += 1
+                    elif position == len(existing_events_in_metro_area) - 1:
+                        print(f'event does not exist: {retrieved_event["displayName"]}, preparing to add')
+                        filtered_events.add(retrieved_event)
+                    position += 1
+                
+                index += 1
+            print(f'number of {metro_area_name} events start: {len(self.metro_area_data[metro_area_name]["events"])}')
+            self.metro_area_data[metro_area_name]['events'] = list(filtered_events)
+            print(f'number of {metro_area_name} events end: {len(self.metro_area_data[metro_area_name]["events"])}')
+
         pg_db.close()
         timer.stop()
         timer.results()
         timer.reset()
     
-    async def retrieve_metroarea_ids(self):
-        timer = Timer('RETRIEVE METROAREA IDs')
+    async def get_sk_metroarea_id(self):
+        timer = Timer('RETRIEVE METROAREA ID')
         timer.begin()
 
-        if len(self.metro_area_names) > 1:
-            tasks = []
-            for name in self.metro_area_names:
-                location_url = f'https://api.songkick.com/api/3.0/search/locations.json?query={name}&apikey={self.api_key}'
-                tasks.append(self.songkick_get_request(location_url))
-            all_location_data = await asyncio.gather(*tasks, return_exceptions=True)
-
-            metro_area_ids = {}
-            for location in all_location_data:
-                metro_area_data = location['results']['location'][0]['metroArea']
-                metro_area_id = metro_area_data['id']
-                metro_area_name = metro_area_data['displayName']
-
-                self.metro_area_data[metro_area_name]['songkick_id'] = metro_area_id
-
-        else:
-            data = await self.songkick_get_request(url=location_url)
-            metro_area_id = data['results']['location'][0]['metroArea']['id']
-            metro_area_name = metro_area_names[0]
-            self.metro_area_data[metro_area_name]['id'] = metro_area_id
+        location_url = f'https://api.songkick.com/api/3.0/search/locations.json?query={self.metro_name}&apikey={self.api_key}'
+        res = await self.sk_get_request(location_url)
+        self.sk_id = res['results']['location'][0]['metroArea']['id']
+        print(f'metro area: {self.metro_name}')
+        print(f'songkick id: {self.sk_id}')
         
         timer.stop()
         timer.results()
         timer.reset()
 
-    async def retrieve_metroarea_events(self):
-        timer = Timer('RETRIEVE METROAREA EVENTS')
-        timer.begin()
+    async def get_metro_sk_events(self):
+        timer = Timer('RETRIEVE METRO SONGKICK EVENTS')
+        timer.begin()            
 
-        async def call_remaining_pages(num_of_pages, metro_id):
+        url = f'https://api.songkick.com/api/3.0/metro_areas/{self.sk_id}/calendar.json?apikey={self.api_key}'
+        res = await self.sk_get_request(url)
+        sk_events = res['results']['event']
+        pages = math.ceil(res['totalEntries'] / 50)
+
+        if pages > 1:
             tasks = set()
             # Build Tasks // MAKE REUSABLE FUNCTION
-            for currentPage in range(num_of_pages):
+            for currentPage in range(pages):
                 currentPage += 1
-                url = f'https://api.songkick.com/api/3.0/events.json?apikey={self.api_key}&location=sk:{metro_id}&page={currentPage}'
-                tasks.add(self.songkick_get_request(url))
+                url = f'https://api.songkick.com/api/3.0/events.json?apikey={self.api_key}&location=sk:{self.sk_id}&page={currentPage}'
+                tasks.add(self.sk_get_request(url))
             paged_data = await asyncio.gather(*tasks, return_exceptions=True)
 
             remaining_events = []
             for page_resp in paged_data:
                 remaining_events += page_resp['results']['event']
-                
-            return remaining_events
-
-        for area_name in self.metro_area_data.keys():
-            events_url = f'https://api.songkick.com/api/3.0/metro_areas/{self.metro_area_data[area_name]["songkick_id"]}/calendar.json?apikey={self.api_key}'
-            metro_event_data = await self.songkick_get_request(events_url)
-            events_results = metro_event_data['results']['event']
-            pages = math.ceil(metro_event_data['totalEntries'] / 50)
-
-            if pages > 1:
-                remaining_page_events = await call_remaining_pages(num_of_pages=pages, metro_id=self.metro_area_data[area_name]['songkick_id'])
-                events_results += remaining_page_events
-            self.metro_area_data[area_name]['events'] = list(filter(self.has_artist, events_results))
-
+            sk_events += remaining_events
+        events_with_artist = list(filter(lambda event: len(event['performance']) > 0, sk_events))
+        self.sk_events = tuple(events_with_artist)
+        print(f'# of SK events retrieved: {len(self.sk_events)}')
         timer.stop()
         timer.results()
         timer.reset()
@@ -255,24 +265,23 @@ async def main():
     timer = Timer('ENTIRE SERVICE')
     timer.begin()
 
-    metro_area_names = set(['Phoenix', 'Tucson'])
-    instance = SongKickService(metro_area_names)
-
-    await instance.retrieve_metroarea_ids()
-    await instance.retrieve_metroarea_events()
-    await instance.remove_non_electronic_events()
+    metro_area_name = 'Phoenix'
+    instance = SongKickService(metro_area_name)
+    await instance.get_sk_metroarea_id()
+    await instance.get_metro_sk_events()
+    #await instance.remove_non_electronic_events()
 
     # TODO: Refactor below method to loop within method and use sets where possible for optimiization
-    await instance.remove_existing_events_using_db()
+    #await instance.remove_existing_events_using_db()
 
-    print('\n')
-    for metro_name in instance.metro_area_data.keys():
+    #print('\n')
+    #for metro_name in instance.metro_area_data.keys():
         #print(instance.metro_area_data[metro_name])
-        for event in instance.metro_area_data[metro_name]['events']:
-            print(event['displayName'])
-    print('\n')
+        #for event in instance.metro_area_data[metro_name]['events']:
+            #print(event['displayName'])
+    #print('\n')
 
-    instance.prepare_data()
+    #instance.prepare_data()
 
         
     # TODO: Map to event to model
