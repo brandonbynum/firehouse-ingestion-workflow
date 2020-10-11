@@ -1,5 +1,6 @@
 from peewee import *
 
+
 pg_db = PostgresqlDatabase(
     'den4ncj6b3nja4',
     user='pxyerzwuholdqp',
@@ -51,7 +52,7 @@ class Venues(Model):
 
 class Events(Model):
     event_id = AutoField(primary_key=True)
-    venue = ForeignKeyField(Venues)
+    venue = ForeignKeyField(Venues, backref='venues')
     event_name = CharField(max_length=255)
     event_start_at = TimeField(null=True)
     event_end_at = TimeField(null=True)

@@ -3,6 +3,7 @@ import asyncio
 import json
 import math
 from peewee import *
+import pprint
 
 from models import *
 from states import states
@@ -16,7 +17,8 @@ class SongKickService():
         self.sk_id = None
         self.cities = []
         self.db_events = []
-        self.sk_events =[]
+        self.sk_events_for_db = []
+        self.sk_events = []
         self.metro_name = metro_name
         self.venues = {}
 
@@ -24,10 +26,9 @@ class SongKickService():
         self.metro_id = metro_id_query.get()
 
         cities_query = Cities.select().where(Cities.metropolitan == self.metro_id)
-        cities = [city for city in cities_query]
-        self.metro_cities = cities
+        self.cities = [city for city in cities_query]
 
-        existing_venues_in_city_query = Venues.select().where(Venues.city.in_(cities))
+        existing_venues_in_city_query = Venues.select().where(Venues.city.in_(self.cities))
         for venue in existing_venues_in_city_query:
             self.venues[venue.venue_id] = venue.venue_name
 
@@ -44,80 +45,157 @@ class SongKickService():
             else:
                 return data['resultsPage']
 
-    # def prepare_data(self):
-    #     for metro_name in self.metro_area_names:
-    #         print(f'PREPARING DATA: {metro_name}')
-    #         metro_data = self.metro_area_data[metro_name]
+    def prepare_and_save_db(self):
+        print(f'PREPARING DATA: {self.metro_name}')
+        timer = Timer(f'\nPREPARING DATA: {self.metro_name}')
+        timer.begin()
+        
+        db_city_names = {city.city_name for city in self.cities}
+        db_venue_names = {self.venues[venue] for venue in self.venues}
 
-    #         events_to_save = []
-    #         saved_cities = set()
-    #         saved_venues = set()
-    #         for event in metro_data['events']:
-    #             #print(json.dumps(event, sort_keys=True, indent=4))
-    #             city_name = event['location']['city'].split(',')[0]
-    #             state_abbreveation = event['location']['city'].split(',')[1].strip()
-    #             venue_name = event['venue']['displayName']
+        events_to_save = []
+        cities_to_save = []
+        cities_to_save_names = []
+        venues_to_save = []
+        venues_to_save_names = []
 
-    #             # Check if city name exists
-    #             existing_city_names = {city.city_name for city in metro_data['cities']}
-    #             if city_name not in existing_city_names and city_name not in saved_cities:
-    #                 Cities(
-    #                     city_name = city_name,
-    #                     city_state = states[state_abbreveation],
-    #                     city_country = 'United States',
-    #                     metropolitan = self.metro_area_data[metro_name]['id']
-    #                 ).save()
-    #                 saved_cities.add(city_name)
-    #                 print(f'{city_name} saved to the database.')
-    #             elif city_name in saved_cities:
-    #                 print(f'{city_name} saved in this sessioin')
-    #             elif city_name in existing_city_names:
-    #                 print(f'{city_name} already exists in the database prior to this session.')
+        for sk_event in self.sk_events_for_db:
+            #print(json.dumps(event, sort_keys=True, indent=4))
+            sk_event_city_name = sk_event['location']['city'].split(',')[0]
+            state_abbreveation = sk_event['location']['city'].split(',')[1].strip()
+            sk_event_venue_name = sk_event['venue']['displayName']
+            
 
-                
-    #             # Check if venue exists, if not create the venue and save
-    #             existing_venue_names = [metro_data['venues'][venue] for venue in set(metro_data['venues'])]
-    #             if venue_name not in existing_venue_names and venue_name not in saved_venues:
-    #                 city_id = [city for city in metro_data['cities'] if city.city_name == city_name][0]
-    #                 Venues(
-    #                     city = city_id,
-    #                     venue_name = venue_name,
-    #                     venue_address = 'N/A',
-    #                 ).save()
-    #                 saved_venues.add(venue_name)
-    #                 print(f'{venue_name} saved to the database.')
-    #                 # TODO: Log the venue creation and that an address is needed
-    #             elif venue_name in saved_venues:
-    #                 print(f'{venue_name} saved in this sessioin')
-    #             elif venue_name in existing_venue_names:
-    #                 print(f'{venue_name} already exists in the database prior to this session.')
-                    
-    #             # TODO: Log the event and that ticket link is needed
-    #             venue_model = Venues.select().where(Venues.venue_name == venue_name).get()
-                
-    #             event_model = {
-    #                 'venue': venue_model.venue_id,
-    #                 'event_date': event['start']['date'],
-    #                 'event_name': event['displayName'],
-    #                 'event_start_at': event['start']['time'],
-    #                 'event_type': 'Concert',
-    #                 'tickets_link': event['uri'],
-    #             }
+            # Check if city name exists in db, if not creatte model and add to save queue
+            if sk_event_city_name not in db_city_names and sk_event_city_name not in cities_to_save_names:
+                cities_to_save.append({
+                    'city_name': sk_event_city_name,
+                    'city_state': states[state_abbreveation],
+                    'city_country': 'United States',
+                    'metropolitan': self.metro_id
+                })
+                cities_to_save_names.append(sk_event_city_name)
+                print(f'\n\t{sk_event_city_name} queued to save.')
+            elif sk_event_city_name in cities_to_save_names:
+                print(f'\n\t{sk_event_city_name} already queued to be saved.')
+            elif sk_event_city_name in db_city_names:
+                print(f'\n\t{sk_event_city_name} already exists in the db. {[city for city in self.cities if sk_event_city_name == city.city_name]}')
+            
 
-    #             if event_model not in events_to_save:
-    #                 print('event queued to save')
-    #                 events_to_save.append(event_model)
+            # Check if venue exists, if not create model and add to save queue
+            if sk_event_venue_name not in db_venue_names and sk_event_venue_name not in venues_to_save_names:
+                venue_model_to_save = {
+                    'venue_name': sk_event_venue_name,
+                    'venue_address': 'N/A',
+                }
 
-            # Events.insert_many(
-            #     events_to_save, 
-            #     fields=[
-            #         Events.venue, 
-            #         Events.event_date,
-            #         Events.event_name,
-            #         Events.event_start_at,
-            #         Events.event_type,
-            #         Events.tickets_link,
-            #     ]).execute()
+                if sk_event_city_name in cities_to_save_names: #city id does not exist yet
+                    venue_model_to_save['city_name'] = sk_event_city_name
+                elif sk_event_city_name in db_city_names:
+                    venue_model_to_save['city'] = [
+                        city.city_id for city in self.cities if sk_event_city_name == city.city_name
+                    ][0]
+
+                venues_to_save.append(venue_model_to_save)
+                venues_to_save_names.append(sk_event_venue_name)
+                print(f'\t{sk_event_venue_name} queued to save.')
+            elif sk_event_venue_name in venues_to_save:
+                print(f'\t{sk_event_venue_name} already queued to be saved.')
+            elif sk_event_venue_name in db_venue_names:
+                print(f'\t{sk_event_venue_name} already exists in the db ({[venue for venue in self.venues if sk_event_venue_name == self.venues[venue]][0]})')   
+            # TODO: Log the event and that ticket link is needed
+
+            # Creatte model obj for event
+            sk_event_model_to_save = {
+                'event_date': sk_event['start']['date'],
+                'event_name': sk_event['displayName'],
+                'event_start_at': sk_event['start']['time'],
+                'event_type': 'Concert',
+                'tickets_link': sk_event['uri'],
+            }
+            if sk_event_venue_name in venues_to_save_names:
+                sk_event_model_to_save['venue_name'] = sk_event_venue_name
+            elif sk_event_venue_name in db_venue_names:
+                sk_event_model_to_save['venue'] = [
+                    venue for venue in self.venues if sk_event_venue_name == self.venues[venue]
+                ][0]
+            events_to_save.append(sk_event_model_to_save)
+
+        #  BEGIN SAVING ITEMS ===================================================================================
+        print(f'\n\tCities to save ({len(cities_to_save)}): {cities_to_save}')
+        if len(cities_to_save) > 0:
+            try:
+                Cities.insert_many(
+                    cities_to_save,
+                    fields=[
+                        'city_name',
+                        'city_state',
+                        'city_country',
+                        'metropolitan'
+                    ]
+                ).execute()
+                print(f'{len(cities_to_save)} city models successfully saved!')
+            except:
+                print('Error occurred while inserting city models')
+
+        print(f'\nVenues to save ({len(venues_to_save)}): {json.dumps(venues_to_save, indent=4, sort_keys=True)}')
+        final_venue_models_to_save = []
+        if len(venues_to_save) > 0:
+            for venue_model in venues_to_save:
+                if 'city_name' in venue_model.keys():
+                    try:
+                        city_id = Cities.select().where(Cities.city_name == venue_model['city_name'])
+                        venue_model['city'] = city_id
+                        del venue_model['city_name']
+                    except:
+                        print(f'Error finding city_id for venue: {venue_model.venue_name}')
+                final_venue_models_to_save.append(venue_model)
+            
+            try:
+                Venues.insert_many(
+                    venues_to_save,
+                    fields=[
+                        'venue_name',
+                        'venue_address',
+                    ]
+                ).execute()
+                print(f'{len(venues_to_save)} venue models successfully saved!')
+            except:
+                print('Error occurred while inserting venue models')
+
+
+        #if len(events_to_save) > 0:
+
+        print(f'\nEvents to save ({len(events_to_save)}): {json.dumps(events_to_save, indent=4, sort_keys=True)}')
+        
+            
+
+
+
+        # Save all venues
+        # Save all eventts
+        
+        # Venues(
+        #     city=city_id,
+        #     venue_name=venue_name,
+        #     venue_address='N/A',
+        # )
+
+        # Events.insert_many(
+        #     events_to_save, 
+        #     fields=[
+        #         Events.venue, 
+        #         Events.event_date,
+        #         Events.event_name,
+        #         Events.event_start_at,
+        #         Events.event_type,
+        #         Events.tickets_link,
+        #     ]).execute()
+
+        
+        timer.stop()
+        timer.results()
+        timer.reset()
 
     ## TODO: API SOLUTION
     #   goal: remove fetched songkick events that already exist
@@ -288,7 +366,7 @@ async def main():
         print(event['displayName'])
     print('\n')
 
-    #instance.prepare_data()
+    instance.prepare_and_save_db()
 
         
     # TODO: Map to event to model
