@@ -92,7 +92,7 @@ class SongKickService():
                 if sk_event_city_name in cities_to_save_names: #city id does not exist yet
                     venue_model_to_save['city_name'] = sk_event_city_name
                 elif sk_event_city_name in db_city_names:
-                    venue_model_to_save['city'] = [
+                    venue_model_to_save['city_id'] = [
                         city.city_id for city in self.cities if sk_event_city_name == city.city_name
                     ][0]
 
@@ -116,7 +116,7 @@ class SongKickService():
             if sk_event_venue_name in venues_to_save_names:
                 sk_event_model_to_save['venue_name'] = sk_event_venue_name
             elif sk_event_venue_name in db_venue_names:
-                sk_event_model_to_save['venue'] = [
+                sk_event_model_to_save['venue_id'] = [
                     venue for venue in self.venues if sk_event_venue_name == self.venues[venue]
                 ][0]
             events_to_save.append(sk_event_model_to_save)
@@ -145,7 +145,7 @@ class SongKickService():
                 if 'city_name' in venue_model.keys():
                     try:
                         city_id = Cities.select().where(Cities.city_name == venue_model['city_name'])
-                        venue_model['city'] = city_id
+                        venue_model['city_id'] = city_id
                         del venue_model['city_name']
                     except:
                         print(f'Error finding city_id for venue: {venue_model.venue_name}')
@@ -153,45 +153,45 @@ class SongKickService():
             
             try:
                 Venues.insert_many(
-                    venues_to_save,
+                    final_venue_models_to_save,
                     fields=[
+                        'city_id',
                         'venue_name',
                         'venue_address',
                     ]
                 ).execute()
-                print(f'{len(venues_to_save)} venue models successfully saved!')
+                print(f'{len(final_venue_models_to_save)} venue models successfully saved!')
             except:
                 print('Error occurred while inserting venue models')
 
-
-        #if len(events_to_save) > 0:
-
         print(f'\nEvents to save ({len(events_to_save)}): {json.dumps(events_to_save, indent=4, sort_keys=True)}')
-        
+        final_event_models_to_save = []
+        if len(events_to_save) > 0:
+            for event_model in events_to_save:
+                if 'venue_name' in event_model.keys():
+                    try:
+                        venue_id = Venues.select().where(Venues.venue_name == event_model['venue_name'])
+                        event_model['venue_id'] = venue_id
+                        del venue_model['venue_name']
+                    except:
+                        print(f'Error finding venue_id for event: {event_model.event_name}')
+                final_event_models_to_save.append(event_model)
             
-
-
-
-        # Save all venues
-        # Save all eventts
-        
-        # Venues(
-        #     city=city_id,
-        #     venue_name=venue_name,
-        #     venue_address='N/A',
-        # )
-
-        # Events.insert_many(
-        #     events_to_save, 
-        #     fields=[
-        #         Events.venue, 
-        #         Events.event_date,
-        #         Events.event_name,
-        #         Events.event_start_at,
-        #         Events.event_type,
-        #         Events.tickets_link,
-        #     ]).execute()
-
+            try:
+                Events.insert_many(
+                    final_event_models_to_save,
+                    fields=[
+                        'event_date',
+                        'event_name',
+                        'event_start_at',
+                        'event_type',
+                        'tickets_link',
+                        'venue_id',
+                    ]
+                ).execute()
+                print(f'{len(final_event_models_to_save)} event models successfully saved!')    
+            except:
+                print('Error occurred while inserting event models')    
         
         timer.stop()
         timer.results()
