@@ -42,7 +42,7 @@ class Cities(Model):
 
 class Venues(Model):
     venue_id = PrimaryKeyField(primary_key=True)
-    city = ForeignKeyField(Cities, backref='cities', null=True)
+    city = ForeignKeyField(Cities, null=True)
     venue_name = CharField(max_length=255)
     venue_address = CharField(max_length=255)
 
@@ -52,7 +52,7 @@ class Venues(Model):
 
 class Events(Model):
     event_id = AutoField(primary_key=True)
-    venue = ForeignKeyField(Venues, backref='venues')
+    venue = ForeignKeyField(Venues, null=False)
     event_name = CharField(max_length=255)
     event_start_at = TimeField(null=True)
     event_end_at = TimeField(null=True)
@@ -60,6 +60,15 @@ class Events(Model):
     event_date = DateField(null=True)
     event_type = CharField(max_length=25)
     created_on = DateTimeField()
+
+    class Meta:
+        database = pg_db
+
+class Event_Artist(Model):
+    id = AutoField(primary_key=True)
+    event_id = ForeignKeyField(Events, null=False)
+    artist_id = ForeignKeyField(Artists, null=False)
+    is_headliner = BooleanField()
 
     class Meta:
         database = pg_db

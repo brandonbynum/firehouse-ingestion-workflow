@@ -17,6 +17,7 @@ class SongKickService():
         self.sk_id = None
         self.cities = []
         self.db_events = []
+        self.saved_events = []
         self.sk_events_for_db = []
         self.sk_events = []
         self.metro_name = metro_name
@@ -31,6 +32,58 @@ class SongKickService():
         existing_venues_in_city_query = Venues.select().where(Venues.city.in_(self.cities))
         for venue in existing_venues_in_city_query:
             self.venues[venue.venue_id] = venue.venue_name
+
+    def create_artist_event_relations(self, event_list):
+        print(f'\nCreating event artist relations: {self.metro_name}')
+        timer = Timer(f'\nCreating event artist relations: {self.metro_name}')
+        timer.begin()
+
+        event_artist_models_to_save = []
+
+        for event_model in event_list:
+            for index, artist in enumerate(event_model['artists']):
+                event_artist_model = {
+                    'artist_id': None,
+                    'event_id': None,
+                    'is_headliner': False,
+                }
+
+                try:
+                    event_artist_model['artist_id'] = Artists.select().where(
+                        Artists.artist_name == event_model['artists'][index]['displayName']
+                    ).get().artist_id
+                except:
+                    print(f'\t{event_model["artist"][index]["displayName"]} does not exist in db.')
+                    #TODO: If artist doesn't exist create artist
+                    continue
+
+                event_artist_model['event_id'] = Events.select().where(
+                    Events.event_name == event_model['event_name'],
+                    Events.event_date == event_model['event_date'],
+                    Events.event_start_at == event_model['event_start_at']
+                ).get().event_id
+
+                if index == 0:
+                    event_artist_model['is_headliner'] = True
+                print('{',event_artist_model,'}')
+
+                event_artist_models_to_save.append(event_artist_model)
+        try:
+            Event_Artist.insert_many(
+                event_artist_models_to_save,
+                fields=[
+                    'artist_id',
+                    'event_id',
+                    'is_headliner',
+                ]
+            ).execute()
+            print(f'{len(event_artist_models_to_save)} event artist models successfully saved!')
+        except:
+            print('\tError occurred while inserting event artist models')
+
+        timer.stop()
+        timer.results()
+        timer.reset()
 
     async def sk_get_request(self, url: str):
         async with aiohttp.ClientSession() as session:
@@ -107,6 +160,7 @@ class SongKickService():
 
             # Creatte model obj for event
             sk_event_model_to_save = {
+                'artists': sk_event['performance'],
                 'event_date': sk_event['start']['date'],
                 'event_name': sk_event['displayName'],
                 'event_start_at': sk_event['start']['time'],
@@ -191,22 +245,13 @@ class SongKickService():
                 ).execute()
                 print(f'{len(final_event_models_to_save)} event models successfully saved!')    
             except:
-                print('Error occurred while inserting event models')    
+                print('Error occurred while inserting event models')
+
+        self.saved_events = final_event_models_to_save   
         
         timer.stop()
         timer.results()
         timer.reset()
-
-    ## TODO: API SOLUTION
-    #   goal: remove fetched songkick events that already exist
-    #   1. run this solution, set flag to decide whether or not to run sql solution if api fails
-    #   2. call events list api end point
-    #   3. loop through each retrieved songkick event (find fastest algorithm to sort through )
-    #       a. loop through all existing events
-    #           -  check if following event fields match: venue name, date, event start time, artist name
-    #               1.  if so, delete event from lisit of fetched events, since it already exists
-    async def remove_existing_events_using_api(self, metro_area_id):
-        return None
 
     async def filter_events_by_existing_artist(self):
         timer = Timer('REMOVE NON ELECTRONIC EVENTS')
@@ -293,8 +338,9 @@ class SongKickService():
             continue
 
         print(f'\nnumber of {self.metro_name} events start: {len(self.sk_events)}')
-        set_of_sk_events_for_db = {json.dumps(d, sort_keys=True) for d in sk_events_for_db}
-        filtered_sk_events_for_db = [json.loads(t) for t in set_of_sk_events_for_db]            
+        # Used to remove duplicate dictitonaries.
+        set_of_sk_events_for_db = {json.dumps(dictionary, sort_keys=True) for dictionary in sk_events_for_db}
+        filtered_sk_events_for_db = [json.loads(dictionary) for dictionary in set_of_sk_events_for_db]   
         self.sk_events_for_db = filtered_sk_events_for_db
         print(f'number of {self.metro_name} events end: {len(self.sk_events_for_db)}')
 
@@ -302,6 +348,13 @@ class SongKickService():
         timer.stop()
         timer.results()
         timer.reset()
+
+    def dictionary_list_to_set(self, list):
+        new_set = {json.dumps(dictionary, sort_keys=True) for dictionary in list}
+        return new_set
+
+    def dictionary_set_to_list(self, set):
+        new_list = [json.loads(dictionary) for dictionary in set]
     
     async def get_sk_metroarea_id(self):
         timer = Timer('RETRIEVE METROAREA ID')
@@ -367,9 +420,8 @@ async def main():
     print('\n')
 
     instance.prepare_and_save_db()
-
+    instance.create_artist_event_relations(instance.saved_events)
         
-    # TODO: Map to event to model
 
     timer.stop()
     timer.results()
