@@ -8,7 +8,16 @@ import pprint
 from models import *
 from states import states
 from timer import Timer
-        
+
+def dictionary_list_to_set(self, list):
+    new_set = {json.dumps(dictionary, sort_keys=True)
+                            for dictionary in list}
+    return new_set
+
+def dictionary_set_to_list(self, set):
+    new_list = [json.loads(dictionary) for dictionary in set]
+    return new_list
+
 class SongKickService():
     def __init__(self, metro_name):
         self.api_key = 'fUiSaa7nFB1tDdh7'
@@ -145,9 +154,7 @@ class SongKickService():
                 if sk_event_city_name in cities_to_save_names: #city id does not exist yet
                     venue_model_to_save['city_name'] = sk_event_city_name
                 elif sk_event_city_name in db_city_names:
-                    venue_model_to_save['city_id'] = [
-                        city.city_id for city in self.cities if sk_event_city_name == city.city_name
-                    ][0]
+                    venue_model_to_save['city_id'] = [city.city_id for city in self.cities if sk_event_city_name == city.city_name][0]
 
                 venues_to_save.append(venue_model_to_save)
                 venues_to_save_names.append(sk_event_venue_name)
@@ -171,8 +178,7 @@ class SongKickService():
                 sk_event_model_to_save['venue_name'] = sk_event_venue_name
             elif sk_event_venue_name in db_venue_names:
                 sk_event_model_to_save['venue_id'] = [
-                    venue for venue in self.venues if sk_event_venue_name == self.venues[venue]
-                ][0]
+                    venue for venue in self.venues if sk_event_venue_name == self.venues[venue]][0]
             events_to_save.append(sk_event_model_to_save)
 
         #  BEGIN SAVING ITEMS ===================================================================================
@@ -348,13 +354,6 @@ class SongKickService():
         timer.stop()
         timer.results()
         timer.reset()
-
-    def dictionary_list_to_set(self, list):
-        new_set = {json.dumps(dictionary, sort_keys=True) for dictionary in list}
-        return new_set
-
-    def dictionary_set_to_list(self, set):
-        new_list = [json.loads(dictionary) for dictionary in set]
     
     async def get_sk_metroarea_id(self):
         timer = Timer('RETRIEVE METROAREA ID')
@@ -404,7 +403,7 @@ async def main():
     timer = Timer('ENTIRE SERVICE')
     timer.begin()
 
-    metro_area_name = 'Phoenix'
+    metro_area_name = 'Los Angeles'
     instance = SongKickService(metro_area_name)
     await instance.get_sk_metroarea_id()
     await instance.get_metro_sk_events()
