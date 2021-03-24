@@ -56,6 +56,7 @@ class Events(Model):
     event_name = CharField(max_length=255)
     event_start_at = TimeField(null=True)
     event_end_at = TimeField(null=True)
+    is_active = BooleanField(null=False)
     tickets_link = CharField(max_length=255, null=True)
     event_date = DateField(null=True)
     event_type = CharField(max_length=25)
