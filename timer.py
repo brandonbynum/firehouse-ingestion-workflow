@@ -1,5 +1,4 @@
 import time
-
 class Timer():
     def __init__(self, identifier):
         self.end = None
