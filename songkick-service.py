@@ -10,8 +10,7 @@ from states import states
 from timer import Timer
 
 def dictionary_list_to_set(self, list):
-    new_set = {json.dumps(dictionary, sort_keys=True)
-                            for dictionary in list}
+    new_set = {json.dumps(dictionary, sort_keys=True) for dictionary in list}
     return new_set
 
 def dictionary_set_to_list(self, set):
@@ -108,7 +107,7 @@ class SongKickService():
                 return data['resultsPage']
 
     def prepare_and_save_db(self):
-        print(f'PREPARING DATA: {self.metro_name}')
+        print(f'\nPREPARING DATA: {self.metro_name}')
         timer = Timer(f'\nPREPARING DATA: {self.metro_name}')
         timer.begin()
         
@@ -260,7 +259,7 @@ class SongKickService():
         timer.reset()
 
     async def filter_events_by_existing_artist(self):
-        timer = Timer('REMOVE NON ELECTRONIC EVENTS')
+        timer = Timer('\nREMOVE NON ELECTRONIC EVENTS')
         timer.begin()
 
         existing_artists_query = Artists.select()
@@ -356,7 +355,7 @@ class SongKickService():
         timer.reset()
     
     async def get_sk_metroarea_id(self):
-        timer = Timer('RETRIEVE METROAREA ID')
+        timer = Timer('\nRETRIEVE METROAREA ID')
         timer.begin()
 
         location_url = f'https://api.songkick.com/api/3.0/search/locations.json?query={self.metro_name}&apikey={self.api_key}'
@@ -370,7 +369,7 @@ class SongKickService():
         timer.reset()
 
     async def get_metro_sk_events(self):
-        timer = Timer('RETRIEVE METRO SONGKICK EVENTS')
+        timer = Timer('\nRETRIEVE METRO SONGKICK EVENTS')
         timer.begin()            
 
         url = f'https://api.songkick.com/api/3.0/metro_areas/{self.sk_id}/calendar.json?apikey={self.api_key}'
@@ -403,7 +402,7 @@ async def main():
     timer = Timer('ENTIRE SERVICE')
     timer.begin()
 
-    metro_area_name = 'Los Angeles'
+    metro_area_name = 'Phoenix'
     instance = SongKickService(metro_area_name)
     await instance.get_sk_metroarea_id()
     await instance.get_metro_sk_events()
