@@ -9,6 +9,34 @@ from models import *
 from states import states
 from timer import Timer
 
+
+async def main():
+    timer = Timer('ENTIRE SERVICE')
+    timer.begin()
+
+    metro_area_name = 'Phoenix'
+    instance = SongKickService()
+    songkick_metroarea_id = await instance.get_sk_metroarea_id(metro_area_name)
+    # songkick_metroarea_events = await instance.get_metro_sk_events(songkick_metroarea_id)
+    # events_with_artists = instance.filter_out_events_without_artist(songkick_metroarea_events)
+    # await instance.filter_events_by_existing_artist()
+
+    # TODO: Refactor below method to loop within method and use sets where possible for optimiization
+    # await instance.remove_events_existing_in_db()
+
+    # print('\n')
+    # print(instance.metro_name, 'RESULTS:')
+    # for event in instance.sk_events_for_db:
+    #     print(event['displayName'])
+    # print('\n')
+
+    # instance.prepare_and_save_db()
+    # instance.create_artist_event_relations(instance.saved_events)
+
+    # timer.stop()
+    # timer.results()
+    # timer.reset()
+
 def dictionary_list_to_set(self, list):
     new_set = {json.dumps(dictionary, sort_keys=True) for dictionary in list}
     return new_set
@@ -18,28 +46,32 @@ def dictionary_set_to_list(self, set):
     return new_list
 
 class SongKickService():
-    def __init__(self, metro_name):
-        self.api_key = 'fUiSaa7nFB1tDdh7'
-
+    def __init__(self):
+        self.api_key = 'apikey=fUiSaa7nFB1tDdh7'
+        self.base_url = 'https://api.songkick.com/api/3.0'
         self.metro_id = None
-        self.sk_id = None
         self.cities = []
         self.db_events = []
         self.saved_events = []
         self.sk_events_for_db = []
-        self.sk_events = []
-        self.metro_name = metro_name
         self.venues = {}
 
-        metro_id_query = MetropolitanArea.select().where(MetropolitanArea.metropolitan_name == metro_name)
-        self.metro_id = metro_id_query.get()
+        # metro_id_query = MetropolitanArea.select().where(MetropolitanArea.metropolitan_name == metro_name)
+        # self.metro_id = metro_id_query.get()
 
-        cities_query = Cities.select().where(Cities.metropolitan == self.metro_id)
-        self.cities = [city for city in cities_query]
+        # cities_query = Cities.select().where(Cities.metropolitan == self.metro_id)
+        # self.cities = [city for city in cities_query]
 
-        existing_venues_in_city_query = Venues.select().where(Venues.city.in_(self.cities))
-        for venue in existing_venues_in_city_query:
-            self.venues[venue.venue_id] = venue.venue_name
+        # existing_venues_in_city_query = Venues.select().where(Venues.city.in_(self.cities))
+        # for venue in existing_venues_in_city_query:
+        #     self.venues[venue.venue_id] = venue.venue_name
+
+    async def build_http_tasks(self, urls: set):
+        tasks = set()
+        for url in urls:
+            request = self.sk_get_request(url)
+            tasks.add(request)
+        return await asyncio.gather(*tasks, return_exceptions=True)
 
     def create_artist_event_relations(self, event_list):
         print(f'\nCreating event artist relations: {self.metro_name}')
@@ -93,7 +125,7 @@ class SongKickService():
         timer.results()
         timer.reset()
 
-    async def sk_get_request(self, url: str):
+    async def sk_get_request(self, url):
         async with aiohttp.ClientSession() as session:
             try:
                 resp = await session.request('GET', url)
@@ -354,76 +386,30 @@ class SongKickService():
         timer.results()
         timer.reset()
     
-    async def get_sk_metroarea_id(self):
-        timer = Timer('\nRETRIEVE METROAREA ID')
-        timer.begin()
-
-        location_url = f'https://api.songkick.com/api/3.0/search/locations.json?query={self.metro_name}&apikey={self.api_key}'
-        res = await self.sk_get_request(location_url)
-        self.sk_id = res['results']['location'][0]['metroArea']['id']
-        print(f'metro area: {self.metro_name}')
-        print(f'songkick id: {self.sk_id}')
-        
-        timer.stop()
-        timer.results()
-        timer.reset()
-
-    async def get_metro_sk_events(self):
-        timer = Timer('\nRETRIEVE METRO SONGKICK EVENTS')
-        timer.begin()            
-
-        url = f'https://api.songkick.com/api/3.0/metro_areas/{self.sk_id}/calendar.json?apikey={self.api_key}'
+    async def get_sk_metroarea_id(self, metro_name):
+        url = f'{self.base_url}/search/locations.json?query={metro_name}&{self.api_key}'
         res = await self.sk_get_request(url)
-        sk_events = res['results']['event']
-        pages = math.ceil(res['totalEntries'] / 50)
+        return res['results']['location'][0]['metroArea']['id']
 
-        if pages > 1:
-            tasks = set()
-            # Build Tasks // MAKE REUSABLE FUNCTION
-            for currentPage in range(pages):
-                currentPage += 1
-                url = f'https://api.songkick.com/api/3.0/events.json?apikey={self.api_key}&location=sk:{self.sk_id}&page={currentPage}'
-                tasks.add(self.sk_get_request(url))
-            paged_data = await asyncio.gather(*tasks, return_exceptions=True)
+    async def get_metro_sk_events(self, sk_metro_area_id: int):
+        url = f'{self.base_url}/metro_areas/{sk_metro_area_id}/calendar.json?{self.api_key}'
+        res = await self.sk_get_request(url)
+        sk_metro_events = res['results']['event']
 
+        num_of_additional_pages = math.ceil(res['totalEntries'] / 50)
+        if num_of_additional_pages > 1:
+            page_url = f'{self.base_url}/events.json?{self.api_key}&location=sk:{self.sk_id}&page='
+            urls = {url + count for count in num_of_additional_pages}
+            additional_pages_data = build_http_tasks(urls)
             remaining_events = []
-            for page_resp in paged_data:
+            for page_resp in additional_pages_data:
                 remaining_events += page_resp['results']['event']
-            sk_events += remaining_events
-        events_with_artist = list(filter(lambda event: len(event['performance']) > 0, sk_events))
-        self.sk_events = events_with_artist
-        print(f'# of SK events retrieved: {len(self.sk_events)}, type:{type(self.sk_events)}')
-        timer.stop()
-        timer.results()
-        timer.reset()
+            sk_metro_events += remaining_events
+        return sk_metro_events
 
-# TODO: Optimize code by using sets instead of lists
-async def main():
-    timer = Timer('ENTIRE SERVICE')
-    timer.begin()
-
-    metro_area_name = 'Phoenix'
-    instance = SongKickService(metro_area_name)
-    await instance.get_sk_metroarea_id()
-    await instance.get_metro_sk_events()
-    await instance.filter_events_by_existing_artist()
-
-    # TODO: Refactor below method to loop within method and use sets where possible for optimiization
-    await instance.remove_events_existing_in_db()
-
-    print('\n')
-    print(instance.metro_name, 'RESULTS:')
-    for event in instance.sk_events_for_db:
-        print(event['displayName'])
-    print('\n')
-
-    instance.prepare_and_save_db()
-    instance.create_artist_event_relations(instance.saved_events)
-        
-
-    timer.stop()
-    timer.results()
-    timer.reset()
+    def filter_out_events_without_artist(self, events):
+        events_with_artist = list(filter(lambda event: len(event['performance']) > 0, events))
+        return events_with_artist
 
 
 if __name__ == '__main__':
