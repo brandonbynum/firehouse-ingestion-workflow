@@ -16,13 +16,20 @@ async def main():
 
     metro_area_name = 'Phoenix'
     service = SongKickService()
+
+    print('\nRetrieving metro id.')
     songkick_metroarea_id = await service.get_sk_metroarea_id(metro_area_name)
+    print('\nRetrieving events...')
     songkick_metroarea_events = await service.get_sk_metro_events(songkick_metroarea_id)
     #print(json.dumps(songkick_metroarea_events[-1:], sort_keys=True, indent=2))
+    print(f'\t{len(songkick_metroarea_events)} events retrieved.')
     
-    events_with_artists = service.filter_out_events_without_artist(songkick_metroarea_events)
-    #print(len(events_with_artists))
-    # await instance.filter_events_by_existing_artist()
+    print('\nFiltering events with artist data...')
+    events_with_artists = service.filter_events_with_artist(songkick_metroarea_events)
+    print(f'\t# of events removed: {len(songkick_metroarea_events) - len(events_with_artists)}')
+    
+    print('\n Filtering events of artists existing in database...')
+    #await service.filter_events_by_existing_artist()
 
     # TODO: Refactor below method to loop within method and use sets where possible for optimiization
     # await instance.remove_events_existing_in_db()
@@ -409,7 +416,7 @@ class SongKickService():
                 sk_metro_events += page_resp['results']['event']
         return sk_metro_events
 
-    def filter_out_events_without_artist(self, events):
+    def filter_events_with_artist(self, events):
         events_with_artist = list(filter(lambda event: len(event['performance']) > 0, events))
         return events_with_artist
 
