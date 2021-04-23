@@ -15,10 +15,13 @@ async def main():
     timer.begin()
 
     metro_area_name = 'Phoenix'
-    instance = SongKickService()
-    songkick_metroarea_id = await instance.get_sk_metroarea_id(metro_area_name)
-    # songkick_metroarea_events = await instance.get_metro_sk_events(songkick_metroarea_id)
-    # events_with_artists = instance.filter_out_events_without_artist(songkick_metroarea_events)
+    service = SongKickService()
+    songkick_metroarea_id = await service.get_sk_metroarea_id(metro_area_name)
+    songkick_metroarea_events = await service.get_sk_metro_events(songkick_metroarea_id)
+    #print(json.dumps(songkick_metroarea_events[-1:], sort_keys=True, indent=2))
+    
+    events_with_artists = service.filter_out_events_without_artist(songkick_metroarea_events)
+    #print(len(events_with_artists))
     # await instance.filter_events_by_existing_artist()
 
     # TODO: Refactor below method to loop within method and use sets where possible for optimiization
@@ -391,20 +394,19 @@ class SongKickService():
         res = await self.sk_get_request(url)
         return res['results']['location'][0]['metroArea']['id']
 
-    async def get_metro_sk_events(self, sk_metro_area_id: int):
+    async def get_sk_metro_events(self, sk_metro_area_id: int):
         url = f'{self.base_url}/metro_areas/{sk_metro_area_id}/calendar.json?{self.api_key}'
         res = await self.sk_get_request(url)
         sk_metro_events = res['results']['event']
 
-        num_of_additional_pages = math.ceil(res['totalEntries'] / 50)
-        if num_of_additional_pages > 1:
-            page_url = f'{self.base_url}/events.json?{self.api_key}&location=sk:{self.sk_id}&page='
-            urls = {url + count for count in num_of_additional_pages}
-            additional_pages_data = build_http_tasks(urls)
-            remaining_events = []
+        total_amount_pages = math.ceil(res['totalEntries'] / 50)
+        if total_amount_pages > 1:
+            page_url = f'{self.base_url}/events.json?{self.api_key}&location=sk:{sk_metro_area_id}&page='
+            urls = {page_url + str(count) for count in range(2, total_amount_pages + 1)}
+            additional_pages_data = await self.build_http_tasks(urls)
+
             for page_resp in additional_pages_data:
-                remaining_events += page_resp['results']['event']
-            sk_metro_events += remaining_events
+                sk_metro_events += page_resp['results']['event']
         return sk_metro_events
 
     def filter_out_events_without_artist(self, events):
