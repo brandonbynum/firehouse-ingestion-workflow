@@ -1,51 +1,17 @@
 import aiohttp
 import asyncio
+from dotenv import load_dotenv
 import json
 import math
+import os
 from peewee import *
 import pprint
 
 from models import *
+from showfeur_db import ShowfeurDB
 from states import states
 from timer import Timer
 
-
-async def main():
-    timer = Timer('ENTIRE SERVICE')
-    timer.begin()
-
-    metro_area_name = 'Phoenix'
-    service = SongKickService()
-
-    print('\nRetrieving metro id.')
-    songkick_metroarea_id = await service.get_sk_metroarea_id(metro_area_name)
-    print('\nRetrieving events...')
-    songkick_metroarea_events = await service.get_sk_metro_events(songkick_metroarea_id)
-    #print(json.dumps(songkick_metroarea_events[-1:], sort_keys=True, indent=2))
-    print(f'\t{len(songkick_metroarea_events)} events retrieved.')
-    
-    print('\nFiltering events with artist data...')
-    events_with_artists = service.filter_events_with_artist(songkick_metroarea_events)
-    print(f'\t# of events removed: {len(songkick_metroarea_events) - len(events_with_artists)}')
-    
-    print('\n Filtering events of artists existing in database...')
-    #await service.filter_events_by_existing_artist()
-
-    # TODO: Refactor below method to loop within method and use sets where possible for optimiization
-    # await instance.remove_events_existing_in_db()
-
-    # print('\n')
-    # print(instance.metro_name, 'RESULTS:')
-    # for event in instance.sk_events_for_db:
-    #     print(event['displayName'])
-    # print('\n')
-
-    # instance.prepare_and_save_db()
-    # instance.create_artist_event_relations(instance.saved_events)
-
-    # timer.stop()
-    # timer.results()
-    # timer.reset()
 
 def dictionary_list_to_set(self, list):
     new_set = {json.dumps(dictionary, sort_keys=True) for dictionary in list}
@@ -55,26 +21,19 @@ def dictionary_set_to_list(self, set):
     new_list = [json.loads(dictionary) for dictionary in set]
     return new_list
 
-class SongKickService():
+class SongkickEventService():
+    load_dotenv()
+
     def __init__(self):
-        self.api_key = 'apikey=fUiSaa7nFB1tDdh7'
-        self.base_url = 'https://api.songkick.com/api/3.0'
+        self.api_key = 'apikey=fUiSaa7nFB1tDdh7' #os.getenv('SONGKICK_API_KEY')
+        self.base_url = 'https://api.songkick.com/api/3.0' #os.getenv('SONGKICK_BASE_URL')
         self.metro_id = None
+
         self.cities = []
         self.db_events = []
         self.saved_events = []
         self.sk_events_for_db = []
         self.venues = {}
-
-        # metro_id_query = MetropolitanArea.select().where(MetropolitanArea.metropolitan_name == metro_name)
-        # self.metro_id = metro_id_query.get()
-
-        # cities_query = Cities.select().where(Cities.metropolitan == self.metro_id)
-        # self.cities = [city for city in cities_query]
-
-        # existing_venues_in_city_query = Venues.select().where(Venues.city.in_(self.cities))
-        # for venue in existing_venues_in_city_query:
-        #     self.venues[venue.venue_id] = venue.venue_name
 
     async def build_http_tasks(self, urls: set):
         tasks = set()
@@ -300,21 +259,42 @@ class SongKickService():
         timer.results()
         timer.reset()
 
-    async def filter_events_by_existing_artist(self):
-        timer = Timer('\nREMOVE NON ELECTRONIC EVENTS')
+    async def filter_events_by_existing_artist(self, events):
+        timer = Timer('\n\tREMOVE NON ELECTRONIC EVENTS')
         timer.begin()
 
-        existing_artists_query = Artists.select()
-        existing_artists_names = {artist.artist_name for artist in existing_artists_query}
-        print(f'existing artists: {existing_artists_names}')
+        print(f'\tinput: \n\t\ttype: {type(events)} \n\t\tlen: {len(events)}')
+        event_artists = sorted(
+            set(
+                event['performance'][0]['artist']['displayName'] for event in events
+            )
+        )
 
-        matching_events = list(filter(
-            lambda event: 
-            event['performance'][0]['artist']['displayName'] in existing_artists_names, self.sk_events
-        ))
-        #matching_events = [event for event in self.sk_events if event['performance'][0]['artist']['displayName'] in existing_artists_names]
-        self.sk_events = matching_events
-        print(f'# of SK events after filtering by artist: {len(self.sk_events)}, \ntype:{type(self.sk_events)}')
+        print(f'\n\tevent artists:')
+        for artist in event_artists:
+            print(f'\n\t\t{artist}')
+        
+        existing_artists_query = Artists.select().where(
+            Artists.artist_name.in_(event_artists)
+        )
+        existing_artists_names = sorted({
+            artist.artist_name for artist in existing_artists_query
+        })
+
+        print(f'\n\tmatching artist names:')
+        for artist in existing_artists_names:
+            print(f'\n\t\t{artist}')
+
+        matching_events = list(
+            filter(
+                lambda event: 
+                event['performance'][0]['artist']['displayName'] in existing_artists_names, events
+            )
+        )
+        
+        #print(json.dumps(matching_events, sort_keys=True, indent=4))
+        print(f'\n\toutput: \n\t\tlen:{len(matching_events)} \n\t\ttype:{type(matching_events)}')
+        return matching_events
         timer.stop()
         timer.results()
         timer.reset()
@@ -322,11 +302,7 @@ class SongKickService():
 
     ## DIRECT DATABASE SOLUUTION
     #   goal: remove fetched songkick events that already exist
-    #   1. connect to db
-    #   2. query for metropolitan area id
-    #   3. query for list of cities w/ matching metropolitan area id
-    #   4. query for list of venues w/ matchinig city_id
-    #   5. query for existing events w/ matching venue_id
+    #   TODO 1. query for existing events in metropolitan area
     #
     #   6. loop through each songkick fetched event
     #       a. loop through each existing event
@@ -334,62 +310,48 @@ class SongKickService():
     #               1. grab existing event's venue's name
     #           - check if following event fields match: venue name, date, event start time, artist name
     #               1.if so, delete event from list of fetched events, since it already exists
-    async def remove_events_existing_in_db(self):
+    async def remove_events_existing_in_db(self, metropolitan_name, songkick_events):
         timer = Timer('\nREMOVE EXISTING EVENTS USING DB')
         timer.begin()
-        #connection = pg_db.connect()
-        existing_venue_ids = list(self.venues.keys())
-        print(f'existing venue ids: {existing_venue_ids}')
-        events_query = Events.select().where(Events.venue.in_(existing_venue_ids))
-        self.db_events = [event for event in events_query]
-        print(f'LENGTTH OF DB EVENTTS: {len(events_query)}')
 
+        db_metro_events = ShowfeurDB().get_metropolitan_events(metropolitan_name)
         sk_events_for_db = list()
+
         # loop through all songkick fetched events
-        print(f'loopinig through sk events: {len(self.sk_events)}')
-        for index, sk_event in enumerate(self.sk_events):
-            sk_event = self.sk_events[index]
-            print(f'\nretrieved event being checked: {sk_event["displayName"]} / INDEX - {index}')
+        print(f'\tloopinig through sk events: {len(songkick_events)}')
+        for index, sk_event in enumerate(songkick_events):
+            sk_event = songkick_events[index]
+            print(f'\n\t\tSongkick Event Being : {sk_event["displayName"]} / INDEX - {index}')
             sk_event_venue_name = sk_event['venue']['displayName']
             sk_event_date = sk_event['start']['date']
             sk_event_start_time = sk_event['start']['time']
 
-            if len(self.db_events) == 0:
-                sk_events_for_db.append(sk_event)
-                print('sk_event added')
-
-            # loop through all db events
-            print(f'looping through all db events: {len(self.db_events)}')
-            for position, db_event in enumerate(self.db_events):
-                print(f'existing event: {db_event.event_name} / POSITION: {position}')
+        #     # loop through all db events
+            print(f'looping through all db events: {len(db_metro_events)}')
+            for position, db_event in enumerate(db_metro_events):
+                #print(f'existing event: {db_event.event_name} / POSITION: {position}')
                 db_event_date = str(db_event.event_date)[:10]
+                #print(f'\n\t\t{db_event_date}')
                 db_event_start_time = str(db_event.event_start_at)
-                db_event_venue_name = [self.venues[venue_id] for venue_id in self.venues if venue_id == db_event.venue.venue_id][0]
+                #db_event_venue_name = ShowfeurDB.get_venue_name(db_event.venue_id)
+                break
+                # print(f'FILTERED EVENTS: {len(sk_events_for_db)}')
+                # # Compare venue name, date, start time of the two events, artist name
+                # if sk_event_venue_name == db_event_venue_name and sk_event_date == db_event_date and sk_event_start_time == db_event_start_time:
+                #     print(f'event exists: {db_event.event_name} will not be added.')
+                #     break
                 
-                print(f'FILTERED EVENTS: {len(sk_events_for_db)}')
-                # Compare venue name, date, start time of the two events, artist name
-                # print(f'sk/db venue names: {sk_event_venue_name} / {db_event_venue_name}')
-                # print(f'sk/db event date: {sk_event_date} / {db_event_date}')
-                # print(f'sk/db start time: {sk_event_start_time} / {db_event_start_time}')
-                print(f'sk/db venue names: {sk_event_venue_name == db_event_venue_name}')
-                print(f'sk/db event date: {sk_event_date == db_event_date}')
-                print(f'sk/db start time: {sk_event_start_time == db_event_start_time}')
+        #         if position == len(self.db_events) - 1:
+        #             print(f'event does not exist: {sk_event["displayName"]}, preparing to add')
+        #             sk_events_for_db.append(sk_event)               
+        #     continue
 
-                if sk_event_venue_name == db_event_venue_name and sk_event_date == db_event_date and sk_event_start_time == db_event_start_time:
-                    print(f'event exists: {db_event.event_name} will not be added.')
-                    break
-                
-                if position == len(self.db_events) - 1:
-                    print(f'event does not exist: {sk_event["displayName"]}, preparing to add')
-                    sk_events_for_db.append(sk_event)               
-            continue
-
-        print(f'\nnumber of {self.metro_name} events start: {len(self.sk_events)}')
-        # Used to remove duplicate dictitonaries.
-        set_of_sk_events_for_db = {json.dumps(dictionary, sort_keys=True) for dictionary in sk_events_for_db}
-        filtered_sk_events_for_db = [json.loads(dictionary) for dictionary in set_of_sk_events_for_db]   
-        self.sk_events_for_db = filtered_sk_events_for_db
-        print(f'number of {self.metro_name} events end: {len(self.sk_events_for_db)}')
+        # print(f'\nnumber of {self.metro_name} events start: {len(songkick_events)}')
+        # # Used to remove duplicate dictitonaries.
+        # set_of_sk_events_for_db = {json.dumps(dictionary, sort_keys=True) for dictionary in sk_events_for_db}
+        # filtered_sk_events_for_db = [json.loads(dictionary) for dictionary in set_of_sk_events_for_db]   
+        # self.sk_events_for_db = filtered_sk_events_for_db
+        # print(f'number of {self.metro_name} events end: {len(self.sk_events_for_db)}')
 
         pg_db.close()
         timer.stop()
@@ -419,7 +381,3 @@ class SongKickService():
     def filter_events_with_artist(self, events):
         events_with_artist = list(filter(lambda event: len(event['performance']) > 0, events))
         return events_with_artist
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
