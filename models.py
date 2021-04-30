@@ -1,13 +1,11 @@
 from peewee import *
 
-
 pg_db = PostgresqlDatabase(
     'den4ncj6b3nja4',
     user='pxyerzwuholdqp',
     password='e45b07a7306a8868f1ebc5bf3a63d46c8a8416e602f1749c4af90f44ee96140e',
     host='ec2-34-204-22-76.compute-1.amazonaws.com', port=5432
 )
-
 class BaseModel(Model):
 
     class Meta:
@@ -42,10 +40,9 @@ class Cities(Model):
 
 class Venues(Model):
     venue_id = PrimaryKeyField(primary_key=True)
-    city = ForeignKeyField(Cities, null=True)
+    city_id = ForeignKeyField(Cities, null=True)
     venue_name = CharField(max_length=255)
     venue_address = CharField(max_length=255)
-
     class Meta:
         managed = False
         database = pg_db
