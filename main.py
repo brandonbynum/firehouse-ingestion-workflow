@@ -30,7 +30,7 @@ async def main():
 
     # TODO: Refactor below method to loop within method and use sets where possible for optimiization
     print('\nChecking for events which already exist...')
-    await service.remove_events_existing_in_db(metro_area_name, electronic_events)
+    events_to_add = await service.remove_events_existing_in_db(metro_area_name, electronic_events)
 
     # print('\n')
     # print(service.metro_name, 'RESULTS:')
@@ -38,7 +38,7 @@ async def main():
     #     print(event['displayName'])
     # print('\n')
 
-    # service.prepare_and_save_db()
+    service.prepare_and_save_db()
     # service.create_artist_event_relations(service.saved_events)
 
     # timer.stop()

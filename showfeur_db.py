@@ -35,31 +35,30 @@ class ShowfeurDB():
 
     def get_metropolitan_events(self, metro_name):
         Events = models.Events
-        metropolitan_venues = self.get_metropolitan_venues(metro_name)
-        venue_ids = list(metropolitan_venues.keys())
-
-        events = Events.select().where(Events.venue_id.in_(venue_ids))
-        for event in events:
-            print(f'\n\tTEST : : : {event}')
-
-        return events
+        metropolitan_venue_ids = self.get_metropolitan_venues(metro_name)
+        query = Events.select().where(Events.venue_id.in_(metropolitan_venue_ids))
         
-    def get_venue_name(self,venue_db_index):
+        return [event for event in query.dicts().iterator()]
+        
+        
+    def get_venue_name(self, venue_id):
         Venues = models.Venues
-        print(Venues.select().where(Venues.venue_id == venue_db_index))
+        query = (
+            Venues
+            .select()
+            .where(Venues.venue_id == venue_id)
+        )
+        return query.get().venue_name
 
     def get_metropolitan_venues(self, metro_name):
         city_ids = self.get_metropolitan_cities(metro_name)
         Venues = models.Venues
-        existing_venues_in_city_query = (
+        query = (
             Venues
             .select()
             .where(Venues.city_id.in_(city_ids))
         )
-                
-        venue_dict = {}
-        for venue in existing_venues_in_city_query:
-            venue_dict[venue.venue_id] = venue.venue_name
 
-        #print(json.dumps(venue_dict, indent=4))
-        return venue_dict
+        return [venue.venue_id for venue in query.iterator()]
+        
+    

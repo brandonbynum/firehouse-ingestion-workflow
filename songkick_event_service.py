@@ -314,44 +314,53 @@ class SongkickEventService():
         timer = Timer('\nREMOVE EXISTING EVENTS USING DB')
         timer.begin()
 
-        db_metro_events = ShowfeurDB().get_metropolitan_events(metropolitan_name)
+        db_service = ShowfeurDB()
+        db_metro_events = db_service.get_metropolitan_events(metropolitan_name)
         sk_events_for_db = list()
 
         # loop through all songkick fetched events
         print(f'\tloopinig through sk events: {len(songkick_events)}')
-        for index, sk_event in enumerate(songkick_events):
-            sk_event = songkick_events[index]
-            print(f'\n\t\tSongkick Event Being : {sk_event["displayName"]} / INDEX - {index}')
-            sk_event_venue_name = sk_event['venue']['displayName']
+        for sk_index, sk_event in enumerate(songkick_events):
+            sk_event = songkick_events[sk_index]
+            print(f'\n\t\tSongkick Event Being Checked: {sk_event["displayName"]} / sk_index - {sk_index}')
             sk_event_date = sk_event['start']['date']
             sk_event_start_time = sk_event['start']['time']
+            sk_event_venue_name = sk_event['venue']['displayName']
+            should_add_event = True
 
-        #     # loop through all db events
-            print(f'looping through all db events: {len(db_metro_events)}')
-            for position, db_event in enumerate(db_metro_events):
-                #print(f'existing event: {db_event.event_name} / POSITION: {position}')
-                db_event_date = str(db_event.event_date)[:10]
-                #print(f'\n\t\t{db_event_date}')
-                db_event_start_time = str(db_event.event_start_at)
-                #db_event_venue_name = ShowfeurDB.get_venue_name(db_event.venue_id)
-                break
+            # loop through all db events
+            print(f'\t\t\tlooping through all db events: {len(db_metro_events)}')
+            for db_index, db_event in enumerate(db_metro_events):
+                print(f'\t\t\t\texisting event: {db_event["event_name"]} / db_index: {db_index}')
+                db_event_date = str(db_event["event_date"])[:10]
+                db_event_start_time = str(db_event["event_start_at"])
+                db_event_venue_name = db_service.get_venue_name(db_event["venue_id"])
+        
+                print(f'\t\t\t\t\t{db_event_date}')
+                print(f'\t\t\t\t\t{db_event_start_time}')
+                print(f'\t\t\t\t\t{db_event_venue_name}')
+
                 # print(f'FILTERED EVENTS: {len(sk_events_for_db)}')
-                # # Compare venue name, date, start time of the two events, artist name
-                # if sk_event_venue_name == db_event_venue_name and sk_event_date == db_event_date and sk_event_start_time == db_event_start_time:
-                #     print(f'event exists: {db_event.event_name} will not be added.')
-                #     break
-                
-        #         if position == len(self.db_events) - 1:
-        #             print(f'event does not exist: {sk_event["displayName"]}, preparing to add')
-        #             sk_events_for_db.append(sk_event)               
-        #     continue
 
-        # print(f'\nnumber of {self.metro_name} events start: {len(songkick_events)}')
-        # # Used to remove duplicate dictitonaries.
-        # set_of_sk_events_for_db = {json.dumps(dictionary, sort_keys=True) for dictionary in sk_events_for_db}
-        # filtered_sk_events_for_db = [json.loads(dictionary) for dictionary in set_of_sk_events_for_db]   
-        # self.sk_events_for_db = filtered_sk_events_for_db
-        # print(f'number of {self.metro_name} events end: {len(self.sk_events_for_db)}')
+                # Compare venue name, date, start time of the two events, artist name
+                equal_date = sk_event_date == db_event_date
+                equal_start_time = sk_event_start_time == db_event_start_time
+                equal_venue = sk_event_venue_name == db_event_venue_name
+                if  equal_date and equal_start_time and equal_venue:
+                    print(f'\t\t\tevent exists: {db_event["event_name"]} will not be added.')
+                    should_add_event = False
+                    break
+
+            if should_add_event: 
+                print(f'\t\t\tevent does not exist: {sk_event["displayName"]}, preparing to add')
+                sk_events_for_db.append(sk_event)
+            continue 
+
+        print(f'\nnumber of {metropolitan_name} events start: {len(songkick_events)}')
+        # Used to remove duplicate dictitonaries.
+        set_of_sk_events_for_db = {json.dumps(dictionary, sort_keys=True) for dictionary in sk_events_for_db}
+        filtered_sk_events_for_db = [json.loads(dictionary) for dictionary in set_of_sk_events_for_db]   
+        print(f'number of {metropolitan_name} events end: {len(filtered_sk_events_for_db)}')
 
         pg_db.close()
         timer.stop()
@@ -363,6 +372,10 @@ class SongkickEventService():
         res = await self.sk_get_request(url)
         return res['results']['location'][0]['metroArea']['id']
 
+    # TODO: CHECK IF EACH EVENT IS ACTIVE / HAS PASSED
+    def remove_passed_events(self, events):
+        return None
+        
     async def get_sk_metro_events(self, sk_metro_area_id: int):
         url = f'{self.base_url}/metro_areas/{sk_metro_area_id}/calendar.json?{self.api_key}'
         res = await self.sk_get_request(url)

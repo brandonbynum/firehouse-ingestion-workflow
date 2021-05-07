@@ -49,7 +49,7 @@ class Venues(Model):
 
 class Events(Model):
     event_id = AutoField(primary_key=True)
-    venue = ForeignKeyField(Venues, null=False)
+    venue_id = ForeignKeyField(Venues, null=False)
     event_name = CharField(max_length=255)
     event_start_at = TimeField(null=True)
     event_end_at = TimeField(null=True)
