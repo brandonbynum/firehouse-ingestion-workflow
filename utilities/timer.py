@@ -7,7 +7,10 @@ class Timer():
         self.identifier = identifier
     
     def results(self):
-        print(f'{self.identifier}: Completed in {self.elapsed_time} seconds')
+        completed_message = f'Completed in {self.elapsed_time} seconds'
+        if self.identifier:
+            return f'{self.identifier}: {completed_message}'
+        return completed_message
 
     def reset(self):
         self.start = None
