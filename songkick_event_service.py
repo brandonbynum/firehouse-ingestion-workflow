@@ -281,9 +281,6 @@ class SongkickEventService():
         # self.saved_events = final_event_models_to_save   
 
     async def remove_events_existing_in_db(self, metropolitan_name, songkick_events):
-        timer = Timer('\nREMOVE EXISTING EVENTS USING DB')
-        timer.begin()
-
         db_metro_events = self.db_service.get_metropolitan_events(metropolitan_name)
         sk_events_for_db = list()
 
@@ -334,7 +331,3 @@ class SongkickEventService():
         print(f'number of {metropolitan_name} events end: {len(filtered_sk_events_for_db)}')
 
         pg_db.close()
-        timer.stop()
-        timer.results()
-        timer.reset()
-    
