@@ -2,7 +2,7 @@ import aiohttp
 import asyncio
 from datetime import datetime
 import json
-from timer import Timer
+from utilities.timer import Timer
 import logging
 
 from utilities.pretty_print import pretty_print

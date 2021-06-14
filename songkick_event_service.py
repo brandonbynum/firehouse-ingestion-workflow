@@ -10,8 +10,8 @@ import pprint
 
 from models import *
 from showfeur_db import ShowfeurDB
-from states import states
-from timer import Timer
+from utilities.states import states
+from utilities.timer import Timer
 from utilities.pretty_print import pretty_print
 
 
