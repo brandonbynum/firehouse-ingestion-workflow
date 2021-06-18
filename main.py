@@ -28,11 +28,13 @@ def save_artists_to_csv(data):
     # pp(list(artist_names), True)
     
     filename = f'artist_output_{datetime.date.today()}.csv'
+    root = 'spotify/artist_exports'
+    path = root + '/' + filename
     headers = ['artists']
     df = pd.DataFrame(artist_list, columns=headers)
-    df.to_csv(filename, index=False)
-    df_saved_file = pd.read_csv(filename)
-    print(f'artists saved to {filename}')
+    df.to_csv(path, index=False)
+    df_saved_file = pd.read_csv(path)
+    print(f'artists saved to {path}')
     
 def spotify_menu():
     auth_token = input("Enter auth token:\n")

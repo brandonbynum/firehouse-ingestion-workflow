@@ -26,6 +26,10 @@ class ShowfeurDB():
             ).get()
         except DoesNotExist:
             return None
+    
+    def get_matching_artists(self, artist_list):
+        Artists = models.Artists
+        return Artists.select().where(Artists.artist_name.in_(artist_list))
 
     def get_city(self, city_name):
         try:
