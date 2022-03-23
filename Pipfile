@@ -1,0 +1,32 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+aiohttp = "==3.7.4.post0"
+async-timeout = "==3.0.1"
+attrs = "==21.2.0"
+"backports.entry-points-selectable" = "==1.1.0"
+certifi = "==2021.10.8"
+chardet = "==4.0.0"
+distlib = "==0.3.3"
+filelock = "==3.3.1"
+idna = "==3.3"
+multidict = "==5.2.0"
+pipenv = "==2021.5.29"
+platformdirs = "==2.4.0"
+protobuf = "==3.17.3"
+six = "==1.16.0"
+typing-extensions = "==3.10.0.2"
+virtualenv = "==20.8.1"
+virtualenv-clone = "==0.5.7"
+yarl = "==1.7.0"
+peewee = "==3.14.4"
+psycopg2 = "*"
+
+[dev-packages]
+autopep8 = "*"
+
+[requires]
+python_version = "3.9"

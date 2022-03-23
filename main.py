@@ -36,7 +36,7 @@ def save_artists_to_csv(data):
     df_saved_file = pd.read_csv(path)
     print(f'artists saved to {path}')
     
-def spotify_menu():
+async def spotify_menu():
     auth_token = input("Enter auth token:\n")
     service = SpotifyService(auth_token)
     
@@ -50,7 +50,7 @@ def spotify_menu():
         if choice == 1:
             while True:
                 print("\nFetching playlists...")
-                playlists = service.get_my_playlists()
+                playlists = await service.get_my_playlists()
                 
                 if not len(playlists) > 0:
                     print('No playlists found!')
@@ -91,7 +91,7 @@ async def main():
             #print("Sorry, not developed yet!")
             
         elif service_choice == 2:
-            spotify_menu()
+            await spotify_menu()
         elif service_choice == 0:
             exit()
         else:

@@ -1,7 +1,7 @@
 import asyncio
 import aiohttp
 
-async def build_http_tasks(headers, req_func, urls: set):
+async def build_http_tasks(urls: set, headers = None, req_func = None):
         tasks = set()
         async with aiohttp.ClientSession(headers=headers) as session:
             for url in urls:
