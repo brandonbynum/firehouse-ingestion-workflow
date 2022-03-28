@@ -1,39 +1,28 @@
+# Package imports
 import aiohttp
 import asyncio
 from datetime import datetime
-
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 import json
 import logging
 import math
-import os
+from os import getenv, path
 from peewee import *
-import pprint
 
+# Local imports
 from models import *
-from showfeur_db import ShowfeurDB
+from firehouse_db_service import FirehouseDBService
 from utilities.states import states
 
-
-def dictionary_list_to_set(self, list):
-    new_set = {json.dumps(dictionary, sort_keys=True) for dictionary in list}
-    return new_set
+basedir = path.abspath(path.dirname(__file__))
+load_dotenv(path.join(basedir, ".env"))
 
 
-def dictionary_set_to_list(self, set):
-    new_list = [json.loads(dictionary) for dictionary in set]
-    return new_list
-
-
-class SongkickEventService:
-    # load_dotenv()
-
+class EventIngestionService:
     def __init__(self):
-        # os.getenv('SONGKICK_API_KEY')
-        self.api_key = "apikey=fUiSaa7nFB1tDdh7"
-        # os.getenv('SONGKICK_BASE_URL')
-        self.base_url = "https://api.songkick.com/api/3.0"
-        self.db_service = ShowfeurDB()
+        self.api_key = getenv("API_KEY")
+        self.base_url = getenv("BASE_URL")
+        self.db_service = FirehouseDBService()
         self.metro_id = None
 
         self.cities = []
@@ -43,14 +32,8 @@ class SongkickEventService:
         self.venues = {}
 
     async def main(self):
-        logging.basicConfig(
-            filename=f"{datetime.today()}Run.log",
-            level=logging.INFO,
-            format="%(asctime)s:: %(message)s",
-        )
-
         # TODO: Pull in all metro areas from db and loop
-        metro_area_names = ["Los Angeles", "Phoenix", "San Diego"]
+        metro_area_names = ["Chicago", "Los Angeles", "Miami", "New York", "Phoenix", "San Diego"]
         db_service = self.db_service
 
         logging.info("Beginning Songkick data ingestion for")
@@ -100,17 +83,7 @@ class SongkickEventService:
                 logging.info("\t\t%s new events validated for insert" % len(validated_events))
 
                 logging.info(f"\tCity Data Preparation: {metro_area_name}")
-                cities_to_add = self.validate_cities(metro_area_name, validated_events)
-                num_of_cities_to_add = len(cities_to_add)
-
-                if num_of_cities_to_add > 0:
-                    db_service.save_cities(cities_to_add)
-                    logging.info(
-                        "\t\t%s cities successfully inserted: %s"
-                        % (num_of_cities_to_add, json.dumps(cities_to_add, sort_keys=True, indent=4))
-                    )
-                else:
-                    logging.info("\tNo new cities to add.")
+                self.identify_and_insert_cities(metro_area_name, validated_events)
 
                 logging.info("\tPreparing venue data...")
                 venues_to_add = self.prepare_venues_to_add(metro_area_name, validated_events)
@@ -119,12 +92,7 @@ class SongkickEventService:
                     "\t\t%s venue models prepped: %s"
                     % (num_of_venues_to_add, json.dumps(venues_to_add, sort_keys=True, indent=4))
                 )
-
-                if num_of_venues_to_add > 0:
-                    db_service.save_venues(venues_to_add)
-                    logging.info("\t\t%s venues successfully inserted" % num_of_venues_to_add)
-                else:
-                    logging.info("\t\tNo new venues to insert.")
+                db_service.save_venues(venues_to_add)
 
                 logging.info("\tPreparing event data...")
                 prepped_event_models = self.prepare_events_to_add(validated_events)
@@ -134,9 +102,10 @@ class SongkickEventService:
                     % (num_of_prepped_event_models, json.dumps(prepped_event_models, sort_keys=True, indent=4))
                 )
 
-                if num_of_prepped_event_models > 0:
+                if num_of_prepped_event_models < 1:
+                    logging.info("No new events to insert")
+                else:
                     db_service.save_events(prepped_event_models)
-                    logging.info("\t\t%s events successfully inserted" % num_of_prepped_event_models)
 
                     logging.info("Event Data Preparation")
                     prepped_event_artist_models = self.create_artist_event_relations(validated_events)
@@ -145,17 +114,7 @@ class SongkickEventService:
                         "\t\t%s event artist models prepped: %s"
                         % (num_of_prepped_ea_models, json.dumps(prepped_event_artist_models, sort_keys=True, indent=4))
                     )
-
-                    inserted_event_artists = db_service.save_event_artists(prepped_event_artist_models)
-                    logging.info(
-                        "%s event_artist models saved: %s"
-                        % (
-                            len(inserted_event_artists),
-                            json.dumps(prepped_event_artist_models, sort_keys=True, indent=4),
-                        )
-                    )
-                else:
-                    logging.info("No new events to insert")
+                    db_service.save_event_artists(prepped_event_artist_models)
 
     async def build_http_tasks(self, urls: set):
         tasks = set()
@@ -236,24 +195,27 @@ class SongkickEventService:
                 # You can either handle that here, or pass the exception through
                 data = await resp.json()
             except Exception as err:
-                print(f"Other error occurred: {err}")
+                logging.info(f"Other error occurred: {err}")
                 return err
             else:
                 return data["resultsPage"]
 
     async def get_sk_metro_events(self, sk_metro_area_id: int):
-        url = f"{self.base_url}/metro_areas/{sk_metro_area_id}/calendar.json?{self.api_key}"
-        res = await self.get_request(url)
-        sk_metro_events = res["results"]["event"]
+        try:
+            url = f"{self.base_url}/metro_areas/{sk_metro_area_id}/calendar.json?{self.api_key}"
+            res = await self.get_request(url)
+            sk_metro_events = res["results"]["event"]
 
-        total_amount_pages = math.ceil(res["totalEntries"] / 50)
-        if total_amount_pages > 1:
-            page_url = f"{self.base_url}/events.json?{self.api_key}&location=sk:{sk_metro_area_id}&page="
-            urls = {page_url + str(count) for count in range(2, total_amount_pages + 1)}
-            additional_pages_data = await self.build_http_tasks(urls)
+            total_amount_pages = math.ceil(res["totalEntries"] / 50)
+            if total_amount_pages > 1:
+                page_url = f"{self.base_url}/events.json?{self.api_key}&location=sk:{sk_metro_area_id}&page="
+                urls = {page_url + str(count) for count in range(2, total_amount_pages + 1)}
+                additional_pages_data = await self.build_http_tasks(urls)
 
-            for page_resp in additional_pages_data:
-                sk_metro_events += page_resp["results"]["event"]
+                for page_resp in additional_pages_data:
+                    sk_metro_events += page_resp["results"]["event"]
+        except:
+            logging.error("Failed to retreive events from sk for sk metro id %s" % sk_metro_area_id)
         return sk_metro_events
 
     async def get_sk_metroarea_id(self, metro_name):
@@ -261,31 +223,50 @@ class SongkickEventService:
         res = await self.get_request(url)
         return res["results"]["location"][0]["metroArea"]["id"]
 
-    def validate_cities(self, metropolitan_name, sk_events):
+    async def create_metro_area(name):
+        try:
+            MetropolitanArea.create(name=name)
+            logging.info('Successfully created new Metropolitan Area "%s"' % name)
+        except:
+            logging.info("Error creating Metropolitan Area record for %s" % name)
+
+    def identify_and_insert_cities(self, metropolitan_name, sk_events):
+        metro_query = self.db_service.get_metropolitan_id(metropolitan_name)
+
+        if metro_query is None:
+            logging.info('\t\t"%s" not found, creating entry' % metropolitan_name)
+
+            try:
+                MetropolitanArea.create(name=metropolitan_name)
+                logging.info('\t\tSuccessfully created new Metropolitan Area "%s"' % metropolitan_name)
+                metro_query = self.db_service.get_metropolitan_id(metropolitan_name)
+            except:
+                logging.info("\t\tError creating Metropolitan Area record for %s" % metropolitan_name)
+                exit
+
         db_city_names = self.db_service.get_metropolitan_city_names(metropolitan_name)
         cities_to_add = {}
 
         for sk_event in sk_events:
-            event_name = sk_event["displayName"]
-            state_abbr = sk_event["location"]["city"].split(",")[1].strip()
-            city_data = {
-                "name": sk_event["location"]["city"].split(",")[0],
-                "state": states[state_abbr],
-                "country": "United States",
-                "metropolitan_id": self.db_service.get_metropolitan_id(metropolitan_name).id,
-            }
+            city_name = sk_event["location"]["city"].split(",")[0]
+            # city_query = self.db_service.get_city(city_name)
 
-            city_name = city_data["name"]
-            city_id = self.db_service.get_city(city_name)
-
-            if city_id != None and city_name not in cities_to_add.keys():
+            # City does not exist in db and is not in queue
+            if city_name not in db_city_names and city_name not in cities_to_add.keys():
+                city_data = {
+                    "name": city_name,
+                    "state": sk_event["location"]["city"].split(",")[1].strip(),
+                    "country": "United States",
+                    "metropolitan_id": metro_query.id,
+                }
                 cities_to_add[city_name] = city_data
-        return [cities_to_add[city_name] for city_name in cities_to_add.keys()]
+
+        cities_to_add = [cities_to_add[city_name] for city_name in cities_to_add.keys()]
+        self.db_service.save_cities(cities_to_add)
 
     def prepare_events_to_add(self, events):
         event_rows = []
         for event in events:
-            # pretty_print(event, True)
             venue = self.db_service.get_venue(event["venue"]["displayName"]).get()
             event_name = event["displayName"].split("(")[0]
             event_type = event["type"]
@@ -347,7 +328,6 @@ class SongkickEventService:
                     break
 
             if should_add_event:
-                print(f'\t\t\tevent does not exist: {sk_event["displayName"]}, preparing to add')
                 sk_events_for_db.append(sk_event)
             continue
 

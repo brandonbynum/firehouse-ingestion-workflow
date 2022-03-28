@@ -1,4 +1,9 @@
 from peewee import *
+from dotenv import load_dotenv
+from os import getenv, path
+
+basedir = path.abspath(path.dirname(__file__))
+load_dotenv(path.join(basedir, ".env"))
 
 # pg_db = PostgresqlDatabase(
 #     'den4ncj6b3nja4',
@@ -8,15 +13,11 @@ from peewee import *
 # )
 
 pg_db = PostgresqlDatabase(
-    'showfeur_development',
-    user='brandon',
-    password='121314121314',
-    host='localhost', port=5432
+    getenv("DB_NAME"), user=getenv("DB_USER"), password=getenv("DB_PW"), host=getenv("DB_HOST"), port=getenv("DB_PORT")
 )
 
 
 class BaseModel(Model):
-
     class Meta:
         database = pg_db
 
@@ -45,7 +46,7 @@ class ArtistGenre(Model):
 
     class Meta:
         database = pg_db
-        db_table = 'artist_genre'
+        db_table = "artist_genre"
 
 
 class MetropolitanArea(Model):
@@ -54,7 +55,7 @@ class MetropolitanArea(Model):
 
     class Meta:
         database = pg_db
-        db_table = 'metropolitan_area'
+        db_table = "metropolitan_area"
 
 
 class Cities(Model):
@@ -103,7 +104,7 @@ class Event_Artist(Model):
     headliner = BooleanField()
 
     def __repr__(self):
-        return '{0}'.format(self.event_id)
+        return "{0}".format(self.event_id)
 
     class Meta:
         database = pg_db
