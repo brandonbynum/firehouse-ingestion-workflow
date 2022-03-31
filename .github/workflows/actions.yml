@@ -40,3 +40,5 @@ jobs:
     steps:
       - name: not on Tuesday and Thursday
         if: github.event.schedule != '0 20 * * 2,4'
+        run: |
+          echo 'Not on Tuesday Thursday schedule.'
