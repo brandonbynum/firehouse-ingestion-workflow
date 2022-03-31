@@ -18,20 +18,26 @@ jobs:
   run-ingestion:
     runs-on: ubuntu-latest
     steps:
-      - name: checkout repo content
+      - name: Checkout repo content
         uses: actions/checkout@v2 # checkout the repository content to github runner.
 
-      - name: list files
+      - name: List files
         run: |
           pwd
           ls -a
       
-      - name: setup python
+      - name: Setup python
         uses: actions/setup-python@v2
         with:
           python-version: 3.9.10
       
-      - name: execute run_event_import.py
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install dependencies
+        run: pipenv install 
+      
+      - name: Execute run_event_import.py
         run: |
           python3 run_event_import.py
           
