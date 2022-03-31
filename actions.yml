@@ -1,6 +1,7 @@
 name: Run Event Data Ingestion
 on:
   push:
+    branches: [develop]
   # schedule:
   #   - cron: '0 20 * * 2,4'
     
@@ -12,11 +13,18 @@ jobs:
     steps:
       - name: checkout repo content
         uses: actions/checkout@v2 # checkout the repository content to github runner.
+
+      - name: list files
+        run: |
+          pwd
+          ls -a
+      
       - name: setup python
         uses: actions/setup-python@v2
         with:
           python-version: 3.9.10 #install the python needed
-      - name: Execute run_event_import.py
+      
+      - name: execute run_event_import.py
         run: |
           python3 run_event_import.py
         env:
@@ -30,5 +38,5 @@ jobs:
           
   test-schedule:
     steps:
-      - name: Not on Tuesday and Thursday
+      - name: not on Tuesday and Thursday
         if: github.event.schedule != '0 20 * * 2,4'
