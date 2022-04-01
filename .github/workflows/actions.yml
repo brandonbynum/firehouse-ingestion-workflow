@@ -37,15 +37,12 @@ jobs:
       - name: Install pipenv
         run: pip install pipenv
 
-      # - name: Create virtual environment
-      #   run: pipenv shell 
-
       - name: Install dependencies
         run: pipenv install 
       
       - name: Execute run_event_import.py
         run: |
-          pipenv run python run_event_import.py
+          pipenv run python3 run_event_import.py
           
   test-schedule:
     runs-on: ubuntu-latest
