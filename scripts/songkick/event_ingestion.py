@@ -11,7 +11,7 @@ from peewee import *
 
 # Local imports
 from models import *
-from firehouse_db_service import FirehouseDBService
+from services.firehouse_db_service import FirehouseDBService
 from utilities.states import states
 
 basedir = path.abspath(path.dirname(__file__))
@@ -36,7 +36,7 @@ class EventIngestionService:
         metro_area_names = ["Chicago", "Los Angeles", "Miami", "New York", "Phoenix", "San Diego"]
         db_service = self.db_service
 
-        logging.info("Beginning Songkick data ingestion for")
+        logging.info("Beginning event data ingestion for")
         for metro_area_name in metro_area_names:
             logging.info("------------------------------------------------------------------------")
             logging.info("Fetching metro id for % s...", metro_area_name)

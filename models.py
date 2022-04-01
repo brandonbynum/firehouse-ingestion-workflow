@@ -4,14 +4,6 @@ from os import getenv, path
 
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
-
-# pg_db = PostgresqlDatabase(
-#     'den4ncj6b3nja4',
-#     user='pxyerzwuholdqp',
-#     password='e45b07a7306a8868f1ebc5bf3a63d46c8a8416e602f1749c4af90f44ee96140e',
-#     host='ec2-34-204-22-76.compute-1.amazonaws.com', port=5432
-# )
-
 pg_db = PostgresqlDatabase(
     getenv("DB_NAME"), user=getenv("DB_USER"), password=getenv("DB_PW"), host=getenv("DB_HOST"), port=getenv("DB_PORT")
 )

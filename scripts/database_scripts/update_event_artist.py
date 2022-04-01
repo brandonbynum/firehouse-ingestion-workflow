@@ -1,14 +1,12 @@
-import aiohttp
 import asyncio
-from datetime import datetime, date
-import json
+from datetime import date
 from models import *
 from peewee import *
 from playhouse.shortcuts import model_to_dict, dict_to_model
 from utilities.timer import Timer
-from firehouse_db_service import FirehouseDBService
+from services.firehouse_db_service import FirehouseDBService
 
-
+# TODO: Add function description
 async def main():
     timer = Timer("")
     timer.begin()

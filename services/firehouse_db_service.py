@@ -11,13 +11,6 @@ load_dotenv(path.join(basedir, ".env"))
 
 class FirehouseDBService:
     def __init__(self):
-        # self.db_connection = PostgresqlDatabase(
-        #     'den4ncj6b3nja4',
-        #     user='pxyerzwuholdqp',
-        #     password='e45b07a7306a8868f1ebc5bf3a63d46c8a8416e602f1749c4af90f44ee96140e',
-        #     host='ec2-34-204-22-76.compute-1.amazonaws.com', port=5432
-        # )
-
         self.db_connection = PostgresqlDatabase(
             getenv("DB_NAME"),
             user=getenv("DB_USER"),

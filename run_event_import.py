@@ -1,17 +1,14 @@
-from sqlite3 import Date
-import aiohttp
 import asyncio
 from datetime import datetime
-import json
 from utilities.timer import Timer
 import logging
 
-from event_ingestion import EventIngestionService
+from scripts.songkick.event_ingestion import EventIngestionService
 
 
 async def main():
     logging.basicConfig(
-        filename=f"./event_import_logs/{datetime.today()}Run.log",
+        filename=f"./logs/event_import/event_import_{datetime.today()}.log",
         level=logging.INFO,
         format="%(asctime)s:: %(message)s",
     )

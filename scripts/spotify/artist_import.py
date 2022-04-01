@@ -10,13 +10,14 @@ import pandas as pd
 
 from utilities.pretty_print import pretty_print
 from spotify.spotify_service import SpotifyService
-from firehouse_db_service import FirehouseDBService
+from services.firehouse_db_service import FirehouseDBService
 
-
+# TODO: PEP8 styled function
 def create_artist_model(artist_name):
     return {"artist_name": artist_name}
 
 
+# TODO: Create method to generate auth token and populate
 async def main():
     logging.basicConfig(filename="Run.log", level=logging.INFO, format="%(asctime)s:: %(message)s")
 
