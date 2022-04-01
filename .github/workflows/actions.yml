@@ -30,9 +30,12 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.9.10
-      
+
+      - name: Upgrade pip
+        run: pip install --upgrade pip
+
       - name: Install pipenv
-        run: -m pip install --upgrade pip
+        run: pip install pipenv
 
       # - name: Create virtual environment
       #   run: pipenv shell 
