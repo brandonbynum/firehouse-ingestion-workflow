@@ -16,14 +16,10 @@ jobs:
       DB_PW: ${{ secrets.DB_PW }}
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_PORT }}
-      
+
     steps:
       - name: Checkout repo content
         uses: actions/checkout@v2 # checkout the repository content to github runner.
-
-      - name: List env variables
-        run: |
-          echo $BASE_URL
 
       - name: List files
         run: |
