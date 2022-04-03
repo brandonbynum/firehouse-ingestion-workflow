@@ -21,6 +21,10 @@ jobs:
       - name: Checkout repo content
         uses: actions/checkout@v2 # checkout the repository content to github runner.
 
+      - name: List env variables
+        run: |
+          echo ${{ env.BASE_URL }}
+
       - name: List files
         run: |
           pwd
