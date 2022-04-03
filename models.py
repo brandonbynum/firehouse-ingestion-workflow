@@ -1,11 +1,15 @@
 from peewee import *
 from dotenv import load_dotenv
-from os import getenv, path
+from os import os, getenv, path
 
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
 pg_db = PostgresqlDatabase(
-    getenv("DB_NAME"), user=getenv("DB_USER"), password=getenv("DB_PW"), host=getenv("DB_HOST"), port=getenv("DB_PORT")
+    os.environ("DB_NAME"),
+    user=os.environ("DB_USER"),
+    password=os.environ("DB_PW"),
+    host=os.environ("DB_HOST"),
+    port=os.environ("DB_PORT"),
 )
 
 

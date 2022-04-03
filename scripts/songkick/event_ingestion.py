@@ -6,8 +6,9 @@ from dotenv import load_dotenv
 import json
 import logging
 import math
-from os import getenv, path
+from os import os, path
 from peewee import *
+import sys
 
 # Local imports
 from models import *
@@ -20,8 +21,8 @@ load_dotenv(path.join(basedir, ".env"))
 
 class EventIngestionService:
     def __init__(self):
-        self.api_key = getenv("API_KEY")
-        self.base_url = "https://api.songkick.com/api/3.0"
+        self.api_key = os.environ("API_KEY")
+        self.base_url = os.envrion("BASE_URL")
         self.db_service = FirehouseDBService()
         self.metro_id = None
 
@@ -220,9 +221,13 @@ class EventIngestionService:
 
     async def get_sk_metroarea_id(self, metro_name):
         url = f"{self.base_url}/search/locations.json?query={metro_name}&{self.api_key}"
-        res = await self.get_request(url)
-        print(res)
-        return res["results"]["location"][0]["metroArea"]["id"]
+
+        try:
+            res = await self.get_request(url)
+            return res["results"]["location"][0]["metroArea"]["id"]
+        except:
+            print("Failed to execute http request. Exiting...")
+            sys.exit()
 
     async def create_metro_area(name):
         try:
