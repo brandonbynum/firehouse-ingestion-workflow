@@ -221,6 +221,7 @@ class EventIngestionService:
     async def get_sk_metroarea_id(self, metro_name):
         url = f"{self.base_url}/search/locations.json?query={metro_name}&{self.api_key}"
         res = await self.get_request(url)
+        print(res)
         return res["results"]["location"][0]["metroArea"]["id"]
 
     async def create_metro_area(name):
