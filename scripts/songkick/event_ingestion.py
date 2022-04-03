@@ -21,7 +21,7 @@ load_dotenv(path.join(basedir, ".env"))
 class EventIngestionService:
     def __init__(self):
         self.api_key = getenv("API_KEY")
-        self.base_url = getenv("BASE_URL")
+        self.base_url = "https://api.songkick.com/api/3.0"
         self.db_service = FirehouseDBService()
         self.metro_id = None
 
