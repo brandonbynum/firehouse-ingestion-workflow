@@ -31,13 +31,13 @@ jobs:
         with:
           python-version: 3.9.10
 
-      - name: Upgrade pip
+      - name: Upgrade pip to latest version
         run: pip install --upgrade pip
 
       - name: Install pipenv
         run: pip install pipenv
 
-      - name: Install dependencies
+      - name: Install Pipfile dependencies
         run: pipenv install 
       
       - name: Execute run_event_import.py

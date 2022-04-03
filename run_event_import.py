@@ -8,7 +8,7 @@ from scripts.songkick.event_ingestion import EventIngestionService
 
 async def main():
     logging.basicConfig(
-        filename=f"../../logs/event_import/event_import_{date.isoformat(date.today())}.log",
+        filename=f"event_import_{date.isoformat(date.today())}.log",
         level=logging.INFO,
         format="%(asctime)s:: %(message)s",
     )
