@@ -21,8 +21,8 @@ load_dotenv(path.join(basedir, ".env"))
 
 class EventIngestionService:
     def __init__(self):
-        self.api_key = environ("API_KEY")
-        self.base_url = environ("BASE_URL")
+        self.api_key = environ.get("API_KEY")
+        self.base_url = environ.get("BASE_URL")
         self.db_service = FirehouseDBService()
         self.metro_id = None
 

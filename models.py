@@ -5,11 +5,11 @@ from os import environ, path
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
 pg_db = PostgresqlDatabase(
-    environ("DB_NAME"),
-    user=environ("DB_USER"),
-    password=environ("DB_PW"),
-    host=environ("DB_HOST"),
-    port=environ("DB_PORT"),
+    environ.get("DB_NAME"),
+    user=environ.get("DB_USER"),
+    password=environ.get("DB_PW"),
+    host=environ.get("DB_HOST"),
+    port=environ.get("DB_PORT"),
 )
 
 
