@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import json
 import logging
 import math
-from os import os, path
+from os import environ, path
 from peewee import *
 import sys
 
@@ -21,8 +21,8 @@ load_dotenv(path.join(basedir, ".env"))
 
 class EventIngestionService:
     def __init__(self):
-        self.api_key = os.environ("API_KEY")
-        self.base_url = os.envrion("BASE_URL")
+        self.api_key = environ("API_KEY")
+        self.base_url = environ("BASE_URL")
         self.db_service = FirehouseDBService()
         self.metro_id = None
 
