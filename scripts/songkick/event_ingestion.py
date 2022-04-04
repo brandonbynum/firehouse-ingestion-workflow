@@ -193,7 +193,7 @@ class EventIngestionService:
                 data = await resp.json()
             except Exception as err:
                 print(f"Other error occurred: {err}")
-                return err
+                sys.exit()
             else:
                 return data["resultsPage"]
 
@@ -217,13 +217,8 @@ class EventIngestionService:
 
     async def get_source_metro_id(self, metro_name):
         url = f"{self.base_url}/search/locations.json?query={metro_name}&{self.api_key}"
-
-        try:
-            res = await self.get_request(url)
-            return res["results"]["location"][0]["metroArea"]["id"]
-        except Exception:
-            print(Exception)
-            sys.exit()
+        res = await self.get_request(url)
+        return res["results"]["location"][0]["metroArea"]["id"]
 
     async def create_metro_area(name):
         try:
