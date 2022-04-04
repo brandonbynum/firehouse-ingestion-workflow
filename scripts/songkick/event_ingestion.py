@@ -221,8 +221,8 @@ class EventIngestionService:
         try:
             res = await self.get_request(url)
             return res["results"]["location"][0]["metroArea"]["id"]
-        except:
-            print("Failed to execute http request. Exiting...")
+        except Exception:
+            print(Exception)
             sys.exit()
 
     async def create_metro_area(name):
