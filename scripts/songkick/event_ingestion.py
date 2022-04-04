@@ -37,81 +37,77 @@ class EventIngestionService:
         metro_area_names = ["Chicago", "Los Angeles", "Miami", "New York", "Phoenix", "San Diego"]
         db_service = self.db_service
 
-        logging.info("Beginning event data ingestion for")
+        print("Beginning event data ingestion for")
         for metro_area_name in metro_area_names:
-            logging.info("------------------------------------------------------------------------")
-            logging.info("Fetching metro id for % s...", metro_area_name)
+            print("------------------------------------------------------------------------")
+            print("Fetching metro id for % s...", metro_area_name)
             songkick_metroarea_id = await self.get_sk_metroarea_id(metro_area_name)
-            logging.info(f"\t{songkick_metroarea_id}")
+            print(f"\t{songkick_metroarea_id}")
 
-            logging.info("\tRetrieving events...")
+            print("\tRetrieving events...")
             songkick_metroarea_events = await self.get_sk_metro_events(songkick_metroarea_id)
-            logging.info("\t\t%s events retrieved" % len(songkick_metroarea_events))
+            print("\t\t%s events retrieved" % len(songkick_metroarea_events))
 
             # TODO: Merge logic filtering for none and nonexistent artists
-            logging.info("\tFiltering out events containing no artist data...")
+            print("\tFiltering out events containing no artist data...")
             events_with_artists = self.filter_events_with_artist(songkick_metroarea_events)
             num_events_without_artist = len(songkick_metroarea_events) - len(events_with_artists)
-            logging.info("\t\t%s event(s) filtered out" % num_events_without_artist)
-            logging.info("\t\t%s event(s) with artist(s)" % len(events_with_artists))
+            print("\t\t%s event(s) filtered out" % num_events_without_artist)
+            print("\t\t%s event(s) with artist(s)" % len(events_with_artists))
 
-            logging.info("\tFiltering out events without an artist that exists in the db...")
+            print("\tFiltering out events without an artist that exists in the db...")
             events_with_existing_artist = await self.filter_events_by_existing_artist(events_with_artists)
             num_events_artist_doesnt_exist = len(events_with_artists) - len(events_with_existing_artist)
-            logging.info(
-                "\t\t%s event(s) without an existing artist were filtered out" % num_events_artist_doesnt_exist
-            )
-            logging.info("\t\t%s events with existing artist(s)" % len(events_with_existing_artist))
+            print("\t\t%s event(s) without an existing artist were filtered out" % num_events_artist_doesnt_exist)
+            print("\t\t%s events with existing artist(s)" % len(events_with_existing_artist))
 
             # # TODO: Remove events that contain 'CANCELLED' in title
 
             # # TODO: Refactor below method to loop within method and use sets where possible for optimiization
-            logging.info("\tFiltering out events that already exist")
+            print("\tFiltering out events that already exist")
             validated_events = await self.remove_existing_events_from_queue(
                 metro_area_name, events_with_existing_artist
             )
 
             if not len(validated_events) > 0:
-                logging.info(
-                    "\t\t%s new events to add for metroplitan area %s" % (len(validated_events), metro_area_name)
-                )
+                print("\t\t%s new events to add for metroplitan area %s" % (len(validated_events), metro_area_name))
             else:
                 num_of_filtered_out_events = len(events_with_existing_artist) - len(validated_events)
-                logging.info(
+                print(
                     "\t\t%s new event(s) already exist in the database and were filtered out"
                     % num_of_filtered_out_events
                 )
-                logging.info("\t\t%s new events validated for insert" % len(validated_events))
+                print("\t\t%s new events validated for insert" % len(validated_events))
 
-                logging.info(f"\tCity Data Preparation: {metro_area_name}")
+                print(f"\tCity Data Preparation: {metro_area_name}")
                 self.identify_and_insert_cities(metro_area_name, validated_events)
 
-                logging.info("\tPreparing venue data...")
+                print("\tPreparing venue data...")
                 venues_to_add = self.prepare_venues_to_add(metro_area_name, validated_events)
                 num_of_venues_to_add = len(venues_to_add)
-                logging.info(
+                print(
                     "\t\t%s venue models prepped: %s"
                     % (num_of_venues_to_add, json.dumps(venues_to_add, sort_keys=True, indent=4))
                 )
                 db_service.save_venues(venues_to_add)
 
-                logging.info("\tPreparing event data...")
+                print("\tPreparing event data...")
                 prepped_event_models = self.prepare_events_to_add(validated_events)
                 num_of_prepped_event_models = len(prepped_event_models)
-                logging.info(
+                print(
                     "\t\t%s event models prepped: %s"
                     % (num_of_prepped_event_models, json.dumps(prepped_event_models, sort_keys=True, indent=4))
                 )
 
                 if num_of_prepped_event_models < 1:
-                    logging.info("No new events to insert")
+                    print("No new events to insert")
                 else:
                     db_service.save_events(prepped_event_models)
 
-                    logging.info("Event Data Preparation")
+                    print("Event Data Preparation")
                     prepped_event_artist_models = self.create_artist_event_relations(validated_events)
                     num_of_prepped_ea_models = len(prepped_event_artist_models)
-                    logging.info(
+                    print(
                         "\t\t%s event artist models prepped: %s"
                         % (num_of_prepped_ea_models, json.dumps(prepped_event_artist_models, sort_keys=True, indent=4))
                     )
@@ -196,7 +192,7 @@ class EventIngestionService:
                 # You can either handle that here, or pass the exception through
                 data = await resp.json()
             except Exception as err:
-                logging.info(f"Other error occurred: {err}")
+                print(f"Other error occurred: {err}")
                 return err
             else:
                 return data["resultsPage"]
@@ -232,22 +228,22 @@ class EventIngestionService:
     async def create_metro_area(name):
         try:
             MetropolitanArea.create(name=name)
-            logging.info('Successfully created new Metropolitan Area "%s"' % name)
+            print('Successfully created new Metropolitan Area "%s"' % name)
         except:
-            logging.info("Error creating Metropolitan Area record for %s" % name)
+            print("Error creating Metropolitan Area record for %s" % name)
 
     def identify_and_insert_cities(self, metropolitan_name, sk_events):
         metro_query = self.db_service.get_metropolitan_id(metropolitan_name)
 
         if metro_query is None:
-            logging.info('\t\t"%s" not found, creating entry' % metropolitan_name)
+            print('\t\t"%s" not found, creating entry' % metropolitan_name)
 
             try:
                 MetropolitanArea.create(name=metropolitan_name)
-                logging.info('\t\tSuccessfully created new Metropolitan Area "%s"' % metropolitan_name)
+                print('\t\tSuccessfully created new Metropolitan Area "%s"' % metropolitan_name)
                 metro_query = self.db_service.get_metropolitan_id(metropolitan_name)
             except:
-                logging.info("\t\tError creating Metropolitan Area record for %s" % metropolitan_name)
+                print("\t\tError creating Metropolitan Area record for %s" % metropolitan_name)
                 exit
 
         db_city_names = self.db_service.get_metropolitan_city_names(metropolitan_name)

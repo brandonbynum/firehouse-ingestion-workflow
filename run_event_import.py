@@ -19,7 +19,7 @@ async def main():
     await event_service.main()
 
     timer.stop()
-    logging.info(timer.results())
+    print(timer.results())
     timer.reset()
 
 

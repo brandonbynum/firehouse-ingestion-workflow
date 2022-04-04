@@ -5,9 +5,6 @@ import models
 from dotenv import load_dotenv
 from os import getenv, path
 
-basedir = path.abspath(path.dirname(__file__))
-load_dotenv(path.join(basedir, ".env"))
-
 
 class FirehouseDBService:
     def __init__(self):
@@ -21,7 +18,7 @@ class FirehouseDBService:
 
     def close_connection(self):
         self.db_connection.close()
-        logging.info("Connection closed.")
+        print("Connection closed.")
 
     def get_artist(self, artist_name):
         Artists = models.Artists
@@ -54,13 +51,13 @@ class FirehouseDBService:
         try:
             return models.Genres.select().where(fn.Lower(models.Genres.name) == genre_name)
         except:
-            logging.error("\t\tError querying Genres table for genre name %s" % genre_name)
+            print("\t\tError querying Genres table for genre name %s" % genre_name)
 
     def get_genres(self):
         try:
             return models.Genres.select()
         except:
-            logging.error("Error querying Genres table")
+            print("Error querying Genres table")
 
     def get_metropolitan_id(self, metro_name):
         MetropolitanArea = models.MetropolitanArea
@@ -111,51 +108,51 @@ class FirehouseDBService:
         try:
             with self.db_connection.atomic():
                 models.ArtistGenre.insert_many(artist_genre_models).execute()
-            logging.info("\t%s artist genre models saved" % num_of_models)
+            print("\t%s artist genre models saved" % num_of_models)
         except Exception as err:
-            logging.error(f"Error saving artist genres: {err}")
+            print(f"Error saving artist genres: {err}")
 
     def save_artists(self, artist_names):
         try:
             with self.db_connection.atomic():
                 models.Artists.insert_many(artist_names).execute()
-            logging.info("\t%s artist models saved" % len(artist_names))
+            print("\t%s artist models saved" % len(artist_names))
         except:
-            logging.error(f"Error saving artists")
+            print(f"Error saving artists")
 
     def save_cities(self, city_rows):
         num_of_cities = len(city_rows)
         if num_of_cities < 1:
-            logging.info("\t\tNo new cities to add.")
+            print("\t\tNo new cities to add.")
         else:
             city_model_display = len(city_rows), json.dumps(city_rows, sort_keys=True, indent=4)
             try:
                 with self.db_connection.atomic():
                     models.Cities.insert_many(city_rows).execute()
-                logging.info("\t\t%s cities successfully inserted: %s" % city_model_display)
+                print("\t\t%s cities successfully inserted: %s" % city_model_display)
             except:
-                logging.error("\t\tError saving cities: %s" % city_model_display)
+                print("\t\tError saving cities: %s" % city_model_display)
 
     def save_events(self, event_rows):
         try:
             with self.db_connection.atomic():
                 models.Events.insert_many(event_rows).execute()
-            logging.info("\t\t%s events successfully inserted" % len(event_rows))
+            print("\t\t%s events successfully inserted" % len(event_rows))
         except:
-            logging.error("\t\tError saving events")
+            print("\t\tError saving events")
 
     def save_venues(self, venue_rows):
         num_of_venues = len(venue_rows)
 
         if num_of_venues < 1:
-            logging.info("\t\tNo new venues to insert.")
+            print("\t\tNo new venues to insert.")
         else:
             try:
                 with self.db_connection.atomic():
                     models.Venues.insert_many(venue_rows).execute()
-                logging.info("\t\t%s venues successfully inserted" % num_of_venues)
+                print("\t\t%s venues successfully inserted" % num_of_venues)
             except:
-                logging.error("\t\tError saving %s venues" % num_of_venues)
+                print("\t\tError saving %s venues" % num_of_venues)
 
     def save_event_artists(self, models_to_insert):
         event_ids = [model["event_id"] for model in models_to_insert]
@@ -175,8 +172,8 @@ class FirehouseDBService:
                     ],
                 ).execute()
 
-            logging.info("\t\t%s event_artist models successfully saved" % len(new_models_to_insert))
+            print("\t\t%s event_artist models successfully saved" % len(new_models_to_insert))
 
             return new_models_to_insert
         except Exception:
-            logging.error(f"\t\t{Exception} --- Error occurred while inserting event artist models")
+            print(f"\t\t{Exception} --- Error occurred while inserting event artist models")
