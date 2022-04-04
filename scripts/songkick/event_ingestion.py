@@ -40,9 +40,9 @@ class EventIngestionService:
         print("Beginning event data ingestion for")
         for metro_area_name in metro_area_names:
             print("------------------------------------------------------------------------")
-            print(f"Fetching metro id for '{metro_area_name}'...")
+            print("Fetching metro id for %s...", metro_area_name)
             songkick_metroarea_id = await self.get_source_metro_id(metro_area_name)
-            print(f"\tRetrieved ID: {songkick_metroarea_id}")
+            print("\tRetrieved ID: %s" % songkick_metroarea_id})
 
             print("\tRetrieving events...")
             songkick_metroarea_events = await self.get_sk_metro_events(songkick_metroarea_id)
@@ -191,11 +191,11 @@ class EventIngestionService:
                 # Note that this may raise an exception for non-2xx responses
                 # You can either handle that here, or pass the exception through
                 data = await resp.json()
+            except Exception as err:
+                print(f"Other error occurred: {err}")
+                return err
+            else:
                 return data["resultsPage"]
-
-            except aiohttp.ClientConnectorError as e:
-                print("Connection Error", str(e))
-                sys.exit()
 
     async def get_sk_metro_events(self, sk_metro_area_id: int):
         try:
@@ -217,8 +217,13 @@ class EventIngestionService:
 
     async def get_source_metro_id(self, metro_name):
         url = f"{self.base_url}/search/locations.json?query={metro_name}&{self.api_key}"
-        res = await self.get_request(url)
-        return res["results"]["location"][0]["metroArea"]["id"]
+
+        try:
+            res = await self.get_request(url)
+            return res["results"]["location"][0]["metroArea"]["id"]
+        except Exception:
+            print(Exception)
+            sys.exit()
 
     async def create_metro_area(name):
         try:
