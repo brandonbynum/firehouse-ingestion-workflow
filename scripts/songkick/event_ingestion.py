@@ -40,9 +40,9 @@ class EventIngestionService:
         print("Beginning event data ingestion for")
         for metro_area_name in metro_area_names:
             print("------------------------------------------------------------------------")
-            print("Fetching metro id for %s...", metro_area_name)
+            print(f"Fetching metro id for '{metro_area_name}'...")
             songkick_metroarea_id = await self.get_source_metro_id(metro_area_name)
-            print("\tRetrieved ID: %s" % songkick_metroarea_id)
+            print(f"\tRetrieved ID: {songkick_metroarea_id}")
 
             print("\tRetrieving events...")
             songkick_metroarea_events = await self.get_sk_metro_events(songkick_metroarea_id)
