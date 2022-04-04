@@ -193,9 +193,9 @@ class EventIngestionService:
                 data = await resp.json()
                 return data["resultsPage"]
 
-            except Exception as err:
-                print(f"Other error occurred: {err}")
-                return err
+            except aiohttp.ClientConnectorError as e:
+                print("Connection Error", str(e))
+                sys.exit()
 
     async def get_sk_metro_events(self, sk_metro_area_id: int):
         try:
@@ -217,12 +217,8 @@ class EventIngestionService:
 
     async def get_source_metro_id(self, metro_name):
         url = f"{self.base_url}/search/locations.json?query={metro_name}&{self.api_key}"
-
-        try:
-            res = await self.get_request(url)
-            return res["results"]["location"][0]["metroArea"]["id"]
-        except:
-            sys.exit()
+        res = await self.get_request(url)
+        return res["results"]["location"][0]["metroArea"]["id"]
 
     async def create_metro_area(name):
         try:
