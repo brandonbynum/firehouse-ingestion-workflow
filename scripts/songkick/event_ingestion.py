@@ -42,7 +42,7 @@ class EventIngestionService:
             print("------------------------------------------------------------------------")
             print("Fetching metro id for %s...", metro_area_name)
             songkick_metroarea_id = await self.get_source_metro_id(metro_area_name)
-            print("\tRetrieved ID: %s" % songkick_metroarea_id})
+            print("\tRetrieved ID: %s" % songkick_metroarea_id)
 
             print("\tRetrieving events...")
             songkick_metroarea_events = await self.get_sk_metro_events(songkick_metroarea_id)
