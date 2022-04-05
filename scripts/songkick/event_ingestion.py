@@ -241,9 +241,11 @@ class EventIngestionService:
                 print("\t\tError creating Metropolitan Area record for %s" % metropolitan_name)
                 exit
 
-        db_city_names = self.db_service.get_metropolitan_city_names(metropolitan_name)
-        cities_to_add = {}
+        get_cities_query = self.db_service.get_metropolitan_cities(metropolitan_name)
+        db_city_names = [city.name for city in get_cities_query.iterator()]
+        print("\t\tExisting cities in database: %s" % db_city_names)
 
+        cities_to_add = {}
         for sk_event in sk_events:
             city_name = sk_event["location"]["city"].split(",")[0]
             # city_query = self.db_service.get_city(city_name)

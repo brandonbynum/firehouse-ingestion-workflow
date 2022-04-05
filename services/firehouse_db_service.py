@@ -71,10 +71,6 @@ class FirehouseDBService:
         metro_id = self.get_metropolitan_id(metro_name)
         return Cities.select().where(Cities.metropolitan_id == metro_id)
 
-    def get_metropolitan_city_names(self, metro_name):
-        cities = self.get_metropolitan_cities(metro_name)
-        return [city.name for city in cities.iterator()]
-
     def get_metropolitan_events(self, metro_name):
         Events = models.Events
         metropolitan_venues = self.get_metropolitan_venues(metro_name)
