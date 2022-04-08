@@ -1,0 +1,42 @@
+name: Run Production Event Data Ingestion
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 20 * * *'
+
+jobs:
+  run-ingestion:
+    runs-on: ubuntu-latest
+    # TODO: Add dev/prod specific secrets and logic to read those based on the branch?
+    steps:
+      - name: Checkout repo content
+        uses: actions/checkout@v2 # checkout the repository content to github runner.
+
+      - name: Decode Prod Base64 secrets
+        run: echo $PROD_DB_CONTENT | base64 -d > .env
+        env:
+          PROD_DB_CONTENT: ${{ secrets.PROD_DB_CONTENT }}
+
+      - name: List files
+        run: |
+          pwd
+          ls -a
+      
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9.10
+
+      - name: Upgrade pip to latest version
+        run: pip install --upgrade pip
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install Pipfile dependencies
+        run: pipenv install 
+      
+      - name: Execute run_event_import.py
+        run: |
+          pipenv run python3 run_event_import.py

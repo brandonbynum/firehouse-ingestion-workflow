@@ -1,4 +1,4 @@
-name: Run Event Data Ingestion
+name: Run Testing Event Data Ingestion
 on:
   push:
     branches: [develop]
@@ -13,10 +13,10 @@ jobs:
       - name: Checkout repo content
         uses: actions/checkout@v2 # checkout the repository content to github runner.
 
-      - name: Decode Base64 secrets
-        run: echo $DEV_DB_CONTENT | base64 -d > .env
+      - name: Decode Dev Base64 secrets
+        run: echo $TESTING_DB_CONTENT | base64 -d > .env
         env:
-          DEV_DB_CONTENT: ${{ secrets.DEV_DB_CONTENT }}
+          TESTING_DB_CONTENT: ${{ secrets.TESTING_DB_CONTENT }}
 
       - name: List files
         run: |
@@ -44,7 +44,7 @@ jobs:
   test-schedule:
     runs-on: ubuntu-latest
     steps:
-      - name: not on Tuesday and Thursday
+      - name: not on scheduled 8pm run
         if: github.event.schedule != '0 20 * * *'
         run: |
-          echo 'Not on Tuesday Thursday schedule.'
+          echo 'Did not on scheduled 8pm run'
