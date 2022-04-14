@@ -14,7 +14,8 @@ jobs:
         uses: actions/checkout@v2 # checkout the repository content to github runner.
 
       - name: Decode Dev Base64 secrets
-        run: echo $TESTING_DB_CONTENT | base64 -d > .env
+        run: | 
+          base64 -d > .env
         env:
           TESTING_DB_CONTENT: ${{ secrets.TESTING_DB_CONTENT }}
 
@@ -32,10 +33,12 @@ jobs:
         run: pip install --upgrade pip
 
       - name: Install pipenv
-        run: pip install pipenv
+        run: |
+          pip install pipenv
 
       - name: Install Pipfile dependencies
-        run: pipenv install 
+        run: |
+          pipenv install 
       
       - name: Execute run_event_import.py
         run: |
@@ -44,7 +47,17 @@ jobs:
   test-schedule:
     runs-on: ubuntu-latest
     steps:
-      - name: not on scheduled 8pm run
+      - name: not triggered on scheduled 8pm run
         if: github.event.schedule != '0 20 * * *'
         run: |
           echo 'Did not on scheduled 8pm run'
+      
+      - name: not triggered on scheduled 8pm run
+        if: github.event.schedule != '0 20 * * *'
+        run: |
+          echo 'Did not on scheduled 8pm run'
+
+      # - name: on scheduled 8pm run
+      #   if: github.event.schedule == '0 20 * * *':
+      #   run: |
+      #     echo 'Did not on scheduled 8pm run'
