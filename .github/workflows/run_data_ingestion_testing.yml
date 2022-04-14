@@ -52,10 +52,10 @@ jobs:
         run: |
           echo 'Did not on scheduled 8pm run'
       
-      - name: not triggered on scheduled 8pm run
+      - name: on scheduled 8pm run
         if: github.event.schedule != '0 20 * * *'
         run: |
-          echo 'Did not on scheduled 8pm run'
+          echo 'Triggered on scheduled 8pm run'
 
       # - name: on scheduled 8pm run
       #   if: github.event.schedule == '0 20 * * *':
