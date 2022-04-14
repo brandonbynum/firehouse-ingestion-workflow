@@ -1,5 +1,4 @@
 # Package imports
-import aiohttp
 import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
@@ -8,12 +7,12 @@ import logging
 import math
 from os import environ, path
 from peewee import *
-import sys
 
 # Local imports
 from models import *
 from services.firehouse_db_service import FirehouseDBService
 from utilities.states import states
+from utilities.get_request import get_request
 
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
@@ -116,8 +115,8 @@ class EventIngestionService:
     async def build_http_tasks(self, urls: set):
         tasks = set()
         for url in urls:
-            request = self.get_request(url)
-            tasks.add(request)
+            request = get_request(url)
+            tasks.add(request["resultsPage"])
         return await asyncio.gather(*tasks, return_exceptions=True)
 
     def create_artist_event_relations(self, events):
@@ -184,24 +183,11 @@ class EventIngestionService:
         events_with_artist = list(filter(lambda event: len(event["performance"]) > 0, events))
         return events_with_artist
 
-    async def get_request(self, url):
-        async with aiohttp.ClientSession() as session:
-            try:
-                resp = await session.request("GET", url)
-                # Note that this may raise an exception for non-2xx responses
-                # You can either handle that here, or pass the exception through
-                data = await resp.json()
-            except Exception as err:
-                print(f"Other error occurred: {err}")
-                sys.exit()
-            else:
-                return data["resultsPage"]
-
     async def get_sk_metro_events(self, sk_metro_area_id: int):
         try:
             url = f"{self.base_url}/metro_areas/{sk_metro_area_id}/calendar.json?{self.api_key}"
-            res = await self.get_request(url)
-            sk_metro_events = res["results"]["event"]
+            res = await get_request(url)
+            sk_metro_events = res["resultsPage"]["results"]["event"]
 
             total_amount_pages = math.ceil(res["totalEntries"] / 50)
             if total_amount_pages > 1:
@@ -217,8 +203,9 @@ class EventIngestionService:
 
     async def get_source_metro_id(self, metro_name):
         url = f"{self.base_url}/search/locations.json?query={metro_name}&{self.api_key}"
-        res = await self.get_request(url)
-        return res["results"]["location"][0]["metroArea"]["id"]
+        print(url)
+        res = await get_request(url)
+        return res["resultsPage"]["results"]["location"][0]["metroArea"]["id"]
 
     async def create_metro_area(name):
         try:
