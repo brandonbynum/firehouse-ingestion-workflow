@@ -15,7 +15,7 @@ jobs:
 
       - name: Decode Prod Base64 secrets
         run: | 
-          base64 -d > .env
+          echo $TESTING_DB_CONTENT | base64 -d > .env
         env:
           PROD_DB_CONTENT: ${{ secrets.PROD_DB_CONTENT }}
 
