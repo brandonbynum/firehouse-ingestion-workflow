@@ -1,13 +1,15 @@
 # Package imports
 import asyncio
-from datetime import datetime
-from dotenv import load_dotenv
 import json
 import logging
 import math
-from os import environ, path
+import os
+import sys
 from peewee import *
 
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
 # Local imports
 from models import *
 from services.firehouse_db_service import FirehouseDBService
@@ -15,10 +17,9 @@ from utilities.states import states
 from utilities.get_request import get_request
 
 basedir = path.abspath(path.dirname(__file__))
-load_dotenv(path.join(basedir, ".env"))
 
 
-class EventIngestionService:
+class EventIngestionService1:
     def __init__(self):
         self.api_key = environ.get("API_KEY")
         self.base_url = environ.get("BASE_URL")
@@ -28,7 +29,7 @@ class EventIngestionService:
         self.cities = []
         self.db_events = []
         self.saved_events = []
-        self.sk_events_for_db = []
+        self.source_events_for_db = []
         self.venues = {}
 
     async def main(self):
@@ -40,17 +41,21 @@ class EventIngestionService:
         for metro_area_name in metro_area_names:
             print("------------------------------------------------------------------------")
             print("Fetching metro id for %s..." % metro_area_name)
-            songkick_metroarea_id = await self.get_source_metro_id(metro_area_name)
-            print("\tRetrieved ID: %s" % songkick_metroarea_id)
+            source_metroarea_id = await self.get_source_metro_id(metro_area_name)
+            print("\tRetrieved ID: %s" % source_metroarea_id)
 
             print("\tRetrieving events...")
-            songkick_metroarea_events = await self.get_sk_metro_events(songkick_metroarea_id)
-            print("\t\t%s events retrieved" % len(songkick_metroarea_events))
+            try:
+                source_metroarea_events = await self.get_source_metro_events(source_metroarea_id)
+                print("\t\t%s events retrieved" % len(source_metroarea_events))
+            except Exception:
+                logging.error("Failed to retreive events from source for metro id %s" % source_metroarea_id)
+                continue
 
             # TODO: Merge logic filtering for none and nonexistent artists
             print("\tFiltering out events containing no artist data...")
-            events_with_artists = self.filter_events_with_artist(songkick_metroarea_events)
-            num_events_without_artist = len(songkick_metroarea_events) - len(events_with_artists)
+            events_with_artists = self.filter_events_with_artist(source_metroarea_events)
+            num_events_without_artist = len(source_metroarea_events) - len(events_with_artists)
             print("\t\t%s event(s) filtered out" % num_events_without_artist)
             print("\t\t%s event(s) with artist(s)" % len(events_with_artists))
 
@@ -73,10 +78,9 @@ class EventIngestionService:
             else:
                 num_of_filtered_out_events = len(events_with_existing_artist) - len(validated_events)
                 print(
-                    "\t\t%s new event(s) already exist in the database and were filtered out"
-                    % num_of_filtered_out_events
+                    f"\t\t{num_of_filtered_out_events} new event(s) already exist in the database and were filtered out"
                 )
-                print("\t\t%s new events validated for insert" % len(validated_events))
+                print(f"\t\t{len(validated_events)} new events validated for insert")
 
                 print(f"\tCity Data Preparation: {metro_area_name}")
                 self.identify_and_insert_cities(metro_area_name, validated_events)
@@ -103,7 +107,7 @@ class EventIngestionService:
                 else:
                     db_service.save_events(prepped_event_models)
 
-                    print("Event Data Preparation")
+                    print("Event Artist Data Preparation")
                     prepped_event_artist_models = self.create_artist_event_relations(validated_events)
                     num_of_prepped_ea_models = len(prepped_event_artist_models)
                     print(
@@ -111,13 +115,6 @@ class EventIngestionService:
                         % (num_of_prepped_ea_models, json.dumps(prepped_event_artist_models, sort_keys=True, indent=4))
                     )
                     db_service.save_event_artists(prepped_event_artist_models)
-
-    async def build_http_tasks(self, urls: set):
-        tasks = set()
-        for url in urls:
-            request = get_request(url)
-            tasks.add(request["resultsPage"])
-        return await asyncio.gather(*tasks, return_exceptions=True)
 
     def create_artist_event_relations(self, events):
         models_to_save = []
@@ -135,24 +132,25 @@ class EventIngestionService:
         #                    to the respective fields of the outgoing UI model.
         for event in events:
             artists = event["performance"]
-            for index, artist in enumerate(artists):
+            for artist in artists:
                 event_artist_model = {
                     "artist_id": None,
                     "event_id": None,
                     "headliner": False,
                 }
-                artist_name = artists[index]["artist"]["displayName"]
+                artist_name = artist["artist"]["displayName"]
                 event_name = event["displayName"].split("(")[0]
                 event_date = event["start"]["date"]
                 venue_name = event["venue"]["displayName"]
-                artist_model = self.db_service.get_artist(artist_name)
-                event_model = self.db_service.get_event(event_date, event_name, venue_name).get()
+                artist_model = self.db_service.get_artists(artist_name)
+                event_model = self.db_service.get_event(event_date, event_name, venue_name)
 
                 if artist_model != None and event_model != None:
                     event_artist_model["artist_id"] = artist_model.id
                     event_artist_model["event_id"] = event_model.id
-                    event_artist_model["headliner"] = True if artists[index]["billing"] == "headline" else False
+                    event_artist_model["headliner"] = True if artist["billing"] == "headline" else False
                     models_to_save.append(event_artist_model)
+
         return models_to_save
 
     async def filter_events_by_existing_artist(self, events):
@@ -183,27 +181,27 @@ class EventIngestionService:
         events_with_artist = list(filter(lambda event: len(event["performance"]) > 0, events))
         return events_with_artist
 
-    async def get_sk_metro_events(self, sk_metro_area_id: int):
-        try:
-            url = f"{self.base_url}/metro_areas/{sk_metro_area_id}/calendar.json?{self.api_key}"
-            res = await get_request(url)
-            sk_metro_events = res["resultsPage"]["results"]["event"]
+    async def get_source_metro_events(self, source_metro_area_id: int):
+        url = f"{self.base_url}/metro_areas/{source_metro_area_id}/calendar.json?{self.api_key}"
+        res = await get_request(url)
+        source_metro_events = res["resultsPage"]["results"]["event"]
 
-            total_amount_pages = math.ceil(res["totalEntries"] / 50)
-            if total_amount_pages > 1:
-                page_url = f"{self.base_url}/events.json?{self.api_key}&location=sk:{sk_metro_area_id}&page="
-                urls = {page_url + str(count) for count in range(2, total_amount_pages + 1)}
-                additional_pages_data = await self.build_http_tasks(urls)
+        total_records = res["resultsPage"]["totalEntries"]
+        total_amount_pages = math.ceil(total_records / res["resultsPage"]["perPage"])
 
-                for page_resp in additional_pages_data:
-                    sk_metro_events += page_resp["results"]["event"]
-        except:
-            logging.error("Failed to retreive events from sk for sk metro id %s" % sk_metro_area_id)
-        return sk_metro_events
+        if total_amount_pages > 1:
+            page_url = f"{self.base_url}/events.json?{self.api_key}&location=sk:{source_metro_area_id}&page="
+            urls = {page_url + str(count) for count in range(2, total_amount_pages + 1)}
+            tasks = {get_request(url) for url in urls}
+            additional_page_data = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for page_resp in additional_page_data:
+                if "event" in list(page_resp["resultsPage"]["results"].keys()):
+                    source_metro_events += page_resp["resultsPage"]["results"]["event"]
+        return source_metro_events
 
     async def get_source_metro_id(self, metro_name):
         url = f"{self.base_url}/search/locations.json?query={metro_name}&{self.api_key}"
-        print(url)
         res = await get_request(url)
         return res["resultsPage"]["results"]["location"][0]["metroArea"]["id"]
 
@@ -212,9 +210,9 @@ class EventIngestionService:
             MetropolitanArea.create(name=name)
             print(f'Successfully created new Metropolitan Area "%s"' % name)
         except:
-            print("Error creating Metropolitan Area record for %s" % name)
+            logging.error("Failed to create Metropolitan Area record for %s" % name)
 
-    def identify_and_insert_cities(self, metropolitan_name, sk_events):
+    def identify_and_insert_cities(self, metropolitan_name, source_events):
         metro_query = self.db_service.get_metropolitan_id(metropolitan_name)
 
         if metro_query is None:
@@ -225,7 +223,7 @@ class EventIngestionService:
                 print('\t\tSuccessfully created new Metropolitan Area "%s"' % metropolitan_name)
                 metro_query = self.db_service.get_metropolitan_id(metropolitan_name)
             except:
-                print("\t\tError creating Metropolitan Area record for %s" % metropolitan_name)
+                logging.error("\t\tError creating Metropolitan Area record for %s" % metropolitan_name)
                 exit
 
         get_cities_query = self.db_service.get_metropolitan_cities(metropolitan_name)
@@ -233,15 +231,15 @@ class EventIngestionService:
         print("\t\tExisting cities in database: %s" % db_city_names)
 
         cities_to_add = {}
-        for sk_event in sk_events:
-            city_name = sk_event["location"]["city"].split(",")[0]
+        for source_event in source_events:
+            city_name = source_event["location"]["city"].split(",")[0]
             # city_query = self.db_service.get_city(city_name)
 
             # City does not exist in db and is not in queue
             if city_name not in db_city_names and city_name not in cities_to_add.keys():
                 city_data = {
                     "name": city_name,
-                    "state": sk_event["location"]["city"].split(",")[1].strip(),
+                    "state": source_event["location"]["city"].split(",")[1].strip(),
                     "country": "United States",
                     "metropolitan_id": metro_query.id,
                 }
@@ -272,16 +270,16 @@ class EventIngestionService:
             event_rows.append(model)
         return event_rows
 
-    def prepare_venues_to_add(self, metropolitan_name, sk_events):
+    def prepare_venues_to_add(self, metropolitan_name, source_events):
         db_venue_names = self.db_service.get_metropolitan_venue_names(metropolitan_name)
         venues_to_add = {}
 
-        for sk_event in sk_events:
-            event_name = sk_event["displayName"]
-            city_name = sk_event["location"]["city"].split(",")[0]
+        for source_event in source_events:
+            event_name = source_event["displayName"]
+            city_name = source_event["location"]["city"].split(",")[0]
             venue_data = {
                 "city_id": self.db_service.get_city(city_name).get().id,
-                "name": sk_event["venue"]["displayName"],
+                "name": source_event["venue"]["displayName"],
                 "address": "N/A",
             }
             # Check if venue exists, if not create model and add to save queue
@@ -292,35 +290,35 @@ class EventIngestionService:
                 venues_to_add[venue_name] = venue_data
         return [venues_to_add[venue_name] for venue_name in venues_to_add.keys()]
 
-    async def remove_existing_events_from_queue(self, metropolitan_name, songkick_events):
+    async def remove_existing_events_from_queue(self, metropolitan_name, source_events):
         db_metro_events = self.db_service.get_metropolitan_events(metropolitan_name)
-        sk_events_for_db = list()
+        source_events_for_db = list()
 
-        logging.debug(f"\tloopinig through sk events: {len(songkick_events)}")
-        for sk_index, sk_event in enumerate(songkick_events):
-            sk_event = songkick_events[sk_index]
-            sk_event_date = sk_event["start"]["date"]
-            sk_event_name = sk_event["displayName"].split("(")[0]
-            sk_event_venue_name = sk_event["venue"]["displayName"]
+        logging.debug(f"\tloopinig through source events: {len(source_events)}")
+        for source_index, source_event in enumerate(source_events):
+            source_event = source_events[source_index]
+            source_event_date = source_event["start"]["date"]
+            source_event_name = source_event["displayName"].split("(")[0]
+            source_event_venue_name = source_event["venue"]["displayName"]
             should_add_event = True
 
             for db_index, db_event in enumerate(db_metro_events):
-                equal_event_name = sk_event_name == str(db_event["name"])
-                equal_date = sk_event_date == str(db_event["date"])[:10]
-                equal_venue = sk_event_venue_name == self.db_service.get_venue_name(db_event["venue_id"])
+                equal_event_name = source_event_name == str(db_event["name"])
+                equal_date = source_event_date == str(db_event["date"])[:10]
+                equal_venue = source_event_venue_name == self.db_service.get_venue_name(db_event["venue_id"])
 
                 if equal_date and equal_venue:
                     should_add_event = False
                     break
 
             if should_add_event:
-                sk_events_for_db.append(sk_event)
+                source_events_for_db.append(source_event)
             continue
 
         # Used to remove duplicate dictitonaries.
-        set_of_sk_events_for_db = {json.dumps(dictionary, sort_keys=True) for dictionary in sk_events_for_db}
-        filtered_sk_events_for_db = [json.loads(dictionary) for dictionary in set_of_sk_events_for_db]
-        return filtered_sk_events_for_db
+        set_of_source_events_for_db = {json.dumps(dictionary, sort_keys=True) for dictionary in source_events_for_db}
+        filtered_source_events_for_db = [json.loads(dictionary) for dictionary in set_of_source_events_for_db]
+        return filtered_source_events_for_db
 
     if __name__ == "__main__":
         asyncio.run(main())

@@ -3,19 +3,19 @@ from datetime import date
 from utilities.timer import Timer
 import logging
 
-from scripts.songkick.event_ingestion import EventIngestionService
+from scripts.event_ingestion_1 import EventIngestionService1
 
 
 async def main():
-    logging.basicConfig(
-        filename=f"event_import_{date.isoformat(date.today())}.log",
-        level=logging.INFO,
-        format="%(asctime)s:: %(message)s",
-    )
-    timer = Timer("Songkick Data Ingestion")
+    # logging.basicConfig(
+    #     filename=f"event_import_{date.isoformat(date.today())}.log",
+    #     level=logging.INFO,
+    #     format="%(asctime)s:: %(message)s",
+    # )
+    timer = Timer("Event Data Ingestion")
     timer.begin()
 
-    event_service = EventIngestionService()
+    event_service = EventIngestionService1()
     await event_service.main()
 
     timer.stop()
