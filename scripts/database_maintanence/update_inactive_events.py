@@ -1,7 +1,10 @@
 import asyncio
 from datetime import date
-from models import *
 from peewee import *
+import sys, os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from models import Events
 from utilities.timer import Timer
 
 # TODO: Create log outputs of this process and email them
