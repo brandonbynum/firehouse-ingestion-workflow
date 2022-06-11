@@ -8,7 +8,7 @@ on:
 jobs:
   run-ingestion:
     runs-on: ubuntu-latest
-    
+
     # TODO: Add dev/prod specific secrets and logic to read those based on the branch?
     steps:
       - name: Checkout repo content
@@ -42,7 +42,7 @@ jobs:
       
       - name: Execute event_ingestion_2.py
         run: |
-          pipenv run python3 event_ingestion_2.py
+          pipenv run python3 scripts/event_ingestion_2.py
           
   test-schedule:
     runs-on: ubuntu-latest
