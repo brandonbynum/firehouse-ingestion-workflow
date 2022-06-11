@@ -10,8 +10,6 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import *
 from utilities.data_scraper import data_scraper
-from utilities.truncate_and_write import truncate_and_write
-from utilities.get_file_text import get_file_text
 from utilities.insert_events import insert_events
 
 basedir = path.abspath(path.dirname(__file__))
