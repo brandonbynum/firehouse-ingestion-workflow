@@ -22,6 +22,7 @@ async def main():
         html = requests.get(url).content
     except:
         print(f"\tFailed to retrieve content")
+        exit()
         
     soup = BeautifulSoup(html, features="html.parser")
     all_a_elements = soup.find_all("a", class_="small")
