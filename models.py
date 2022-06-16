@@ -7,6 +7,7 @@ import logging
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
 
+print(environ.get("DB_NAME"))
 pg_db = peewee.PostgresqlDatabase(
     environ.get("DB_NAME"),
     user=environ.get("DB_USER"),
