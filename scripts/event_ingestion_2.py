@@ -20,8 +20,8 @@ async def main():
 
     try:
         html = requests.get(url).content
-    except:
-        print(f"\tFailed to retrieve content")
+    except Exception as e:
+        print(f"\tFailed to retrieve content: ", e)
         exit()
         
     soup = BeautifulSoup(html, features="html.parser")
