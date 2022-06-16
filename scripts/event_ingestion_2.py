@@ -33,8 +33,13 @@ async def main():
         
     # Transform and validate events to import
     print("Number of Events: %s" % len(all_a_elements))
-    artists_dict = {artist["name"]: artist["id"] for artist in Artists.get().dicts()}
-    cities_dict = {city["name"]: city["id"] for city in Cities.get().dicts()}
+    
+    try:
+        artists_dict = {artist["name"]: artist["id"] for artist in Artists.get().dicts()}
+        cities_dict = {city["name"]: city["id"] for city in Cities.get().dicts()}
+    except Exception as e:
+        print(e)
+        exit()
     
     events_to_import = {}
     for element in all_a_elements:
