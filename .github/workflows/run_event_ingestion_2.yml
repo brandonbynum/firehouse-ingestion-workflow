@@ -1,7 +1,7 @@
 name: Run Event Data Ingestion
 on:
   push:
-    branches: [develop, event-ingestion-2.py]
+    branches: [develop, feature/event-ingestion-2]
   pull_request:
     branches: [main]
   schedule:
