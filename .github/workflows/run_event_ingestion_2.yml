@@ -1,23 +1,31 @@
-name: Run Testing Event Data Ingestion
+name: Run Event Data Ingestion
 on:
   push:
-    branches: [develop, feature/event-ingestion-2]
+    branches: [develop, event_ingestion_2.py]
+  pull_request:
+    branches: [main]
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 12 * * *'
 
 jobs:
   run-ingestion:
     runs-on: ubuntu-latest
 
-    # TODO: Add dev/prod specific secrets and logic to read those based on the branch?
     steps:
       - name: Checkout repo content
         uses: actions/checkout@v2 # checkout the repository content to github runner.
-
-      - name: Decode Dev Base64 secrets
+      
+      - name: Decode Base64 secrets (dev)
+        if: github.ref == 'refs/heads/event_ingestion_2'
         run: echo $TESTING_DB_CONTENT | base64 -d > .env
         env:
           TESTING_DB_CONTENT: ${{ secrets.TESTING_DB_CONTENT }}
+
+      - name: Decode Base64 secrets (prod)
+        if: github.ref == 'refs/heads/main'
+        run: echo $PROD_DB_CONTENT | base64 -d > .env
+        env:
+          PROD_DB_CONTENT: ${{ secrets.PROD_DB_CONTENT }}
 
       - name: List files
         run: |
@@ -47,7 +55,7 @@ jobs:
   test-schedule:
     runs-on: ubuntu-latest
     steps:
-      - name: not triggered on scheduled daily 6am run
-        if: github.event.schedule != '0 6 * * *'
+      - name: Not triggered on scheduled daily 12pm run
+        if: github.event.schedule != '0 12 * * *'
         run: |
-          echo 'Did not on scheduled 6am run'
+          echo 'Did not on scheduled 12pm run'
