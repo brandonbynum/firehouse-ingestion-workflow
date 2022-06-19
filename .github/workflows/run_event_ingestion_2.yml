@@ -1,7 +1,7 @@
 name: Run Event Data Ingestion
 on:
   push:
-    branches: [develop, feature/event-ingestion-2]
+    branches: [develop, feature/*]
   pull_request:
     branches: [main]
   schedule:
@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v2 # checkout the repository content to github runner.
       
       - name: Decode Base64 secrets (dev)
-        if: github.ref == 'refs/heads/feature/event-ingestion-2'
+        if: github.ref == 'refs/heads/develop' || contains(github.ref, 'refs/heads/feature/'
         run: echo $TESTING_DB_CONTENT | base64 -d > .env
         env:
           TESTING_DB_CONTENT: ${{ secrets.TESTING_DB_CONTENT }}

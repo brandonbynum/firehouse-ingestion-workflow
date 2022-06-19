@@ -33,4 +33,4 @@ def insert_events(event_details: dict):
                     event_id=model["event_id"],
                     defaults={"headliner": True}
                 )
-                print(model, event_artist_insert[1])
+                print("\n", model, event_artist_insert[1])

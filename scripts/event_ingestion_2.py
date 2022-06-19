@@ -128,6 +128,7 @@ async def main():
                 "ticket_url": ticket_link,
                 "venue_id": venue_id
             }
+            
     insert_events(events_to_import)
     
 if __name__ == "__main__":
