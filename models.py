@@ -7,6 +7,7 @@ import logging
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
 
+print(environ.get("DB_NAME"))
 pg_db = peewee.PostgresqlDatabase(
     environ.get("DB_NAME"),
     user=environ.get("DB_USER"),
@@ -14,21 +15,18 @@ pg_db = peewee.PostgresqlDatabase(
     host=environ.get("DB_HOST"),
     port=environ.get("DB_PORT"),
 )
-
-
 class BaseModel(peewee.Model):
     class Meta:
         database = pg_db
 
-
 class Artists(peewee.Model):
     name = peewee.CharField(max_length=155)
 
-    def __repr__(self):
-        return f"<Artist {self.id}, {self.name} />"
+    # def __repr__(self):
+    #     return f"<Artist {self.id}, {self.name} />"
 
     @classmethod
-    def get(cls, id: int = None, name: str = None) -> peewee.Model:
+    def get(cls, id: int = None, name: str = None):
         if id and name:
             return cls.select().where(cls.id == id and cls.name == name)
         elif id and not name:
@@ -36,7 +34,7 @@ class Artists(peewee.Model):
         elif name and not id:
             return cls.select().where(cls.name == name)
         return cls.select()
-
+    
     @classmethod
     def create_many(cls, artist_names: List):
         try:
@@ -50,11 +48,10 @@ class Artists(peewee.Model):
         managed = False
         database = pg_db
 
-
 class Genres(peewee.Model):
     name = peewee.CharField(max_length=50)
 
-    def get(id: int = None, name: str = None) -> peewee.Model:
+    def get(id: int = None, name: str = None):
         if id and name:
             return Genres.select().where(Genres.id == id and Genres.name == name)
         elif id and not name:
@@ -72,7 +69,7 @@ class ArtistGenre(peewee.Model):
     genre_id = peewee.ForeignKeyField(Genres, backref="genres", null=False)
 
     @classmethod
-    def get(cls) -> peewee.Model:
+    def get(cls):
         return (
             cls.select(ArtistGenre, Artists.name.alias("artist_name"), Genres.name.alias("genre_name"))
             .join(Genres, on=(ArtistGenre.genre_id == Genres.id))
@@ -81,11 +78,11 @@ class ArtistGenre(peewee.Model):
         )
 
     @classmethod
-    def get_by_artist(cls, artist_name: str) -> peewee.Model:
+    def get_by_artist(cls, artist_name: str):
         return cls.select().where(cls.artist_name == artist_name)
 
     @classmethod
-    def get_by_genre(cls, genre_name: str) -> peewee.Model:
+    def get_by_genre(cls, genre_name: str):
         return cls.select().where(cls.genre_name == genre_name)
 
     @classmethod
@@ -96,7 +93,7 @@ class ArtistGenre(peewee.Model):
             logging.info(f"\t{len(models)} ArtistGenre models created")
         except:
             logging.error(f"\t Error creating ArtistGenre models")
-
+            
     class Meta:
         database = pg_db
         db_table = "artist_genres"
@@ -108,6 +105,7 @@ class MetropolitanArea(peewee.Model):
     class Meta:
         database = pg_db
         db_table = "metropolitan_area"
+    
 
 
 class Cities(peewee.Model):
@@ -126,16 +124,18 @@ class Cities(peewee.Model):
         managed = False
         database = pg_db
 
-
 class Venues(peewee.Model):
     city_id = peewee.ForeignKeyField(Cities, null=True)
     name = peewee.CharField(max_length=255)
     address = peewee.CharField(max_length=255)
 
+    @classmethod
+    def get(cls):
+        return cls.select(cls, Venues.name)
+
     class Meta:
         managed = False
         database = pg_db
-
 
 class Events(peewee.Model):
     created_on = peewee.DateTimeField()
@@ -152,7 +152,7 @@ class Events(peewee.Model):
         return f"<Event {self.name}, {self.type}, {self.date}>"
 
     @classmethod
-    def get(cls, id: int = None, name: str = None) -> peewee.Model:
+    def get(cls, id: int = None, name: str = None):
         if id and name:
             return cls.select().where(cls.id == id and cls.name == name)
         elif id and not name:
@@ -160,10 +160,9 @@ class Events(peewee.Model):
         elif name and not id:
             return cls.select().where(cls.name == name)
         return cls.select()
-
+    
     class Meta:
         database = pg_db
-
 
 class Event_Artist(peewee.Model):
     event_id = peewee.ForeignKeyField(Events, null=False)
@@ -172,6 +171,5 @@ class Event_Artist(peewee.Model):
 
     def __repr__(self):
         return "{0}".format(self.event_id)
-
     class Meta:
         database = pg_db
