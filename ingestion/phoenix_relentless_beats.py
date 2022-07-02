@@ -1,5 +1,4 @@
 import asyncio
-from copy import error
 from datetime import datetime
 from bs4 import BeautifulSoup
 import os
@@ -9,7 +8,7 @@ import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import *
-from utilities.data_scraper import data_scraper
+from utilities.request_html import request_html
 from utilities.insert_events import insert_events
 
 basedir = path.abspath(path.dirname(__file__))
@@ -44,7 +43,7 @@ async def main():
     events_to_import = {}
     for element in all_a_elements:
         print()
-        event_html = data_scraper('get', element['href']).content
+        event_html = request_html(element['href'])
         event_detail_soup = BeautifulSoup(event_html, features="html.parser")
         
         # ARTIST NAME value extraciton
@@ -84,7 +83,10 @@ async def main():
                 # TODO: Possible Case --- 'June 17-19 2022'
                 date_element = event_detail_soup.find(id="date")
                 for span in date_element.find_all("span"): span.clear()
-                date_text = ''.join(date_element.text.split('at')[0].strip().split(','))
+                
+                # Converts format from 'July 3, 2022 at 9:00 PM' to 'YYYY-MM-DD 00:00:00'
+                date_split_at = date_element.text.split('at')
+                date_text = ''.join(date_split_at[0].strip().split(','))
                 date = datetime.strptime(date_text, "%B %d %Y")
                 print(f"Date: {date}")
             except:
@@ -93,7 +95,7 @@ async def main():
             
             # START AT value extraction
             try:
-                extracted_start_at = date_element.text.split('at')[1].strip()
+                extracted_start_at = date_split_at[1].strip()
                 start_at = time.strftime("%H:%M", time.strptime(extracted_start_at, "%I:%M %p"))
                 print(f"Start at: {start_at}")
                 
