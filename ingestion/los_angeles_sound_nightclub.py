@@ -58,7 +58,7 @@ async def main():
     """This function retrieves sound nightclub's event data of relevent artists and stores i
     it in the database.
     """
-    url = "https://www.soundnightclub.com/"
+    url = "http://www.soundnightclub.com/"
     list_soup = request_html_as_soup(url)
     event_soups = {}
     events_to_import = {}
