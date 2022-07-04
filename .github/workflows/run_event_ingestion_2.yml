@@ -46,9 +46,13 @@ jobs:
         run: |
           pipenv install 
       
-      - name: Execute event_ingestion_2.py
+      - name: Execute phoenix_relentless_beats.py
         run: |
-          pipenv run python3 scripts/event_ingestion_2.py
+          pipenv run python3 scripts/phoenix_relentless_beats.py
+      
+      - name: Execute los_angeles_sound_nightclub.py
+        run: |
+          pipenv run python3 scripts/los_angeles_sound_nightclub.py
           
   test-schedule:
     runs-on: ubuntu-latest
