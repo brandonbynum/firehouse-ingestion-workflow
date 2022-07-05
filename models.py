@@ -7,7 +7,6 @@ import logging
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
 
-print(environ.get("DB_NAME"))
 pg_db = peewee.PostgresqlDatabase(
     environ.get("DB_NAME"),
     user=environ.get("DB_USER"),
@@ -128,10 +127,10 @@ class Venues(peewee.Model):
     city_id = peewee.ForeignKeyField(Cities, null=True)
     name = peewee.CharField(max_length=255)
     address = peewee.CharField(max_length=255)
-
+    
     @classmethod
-    def get(cls):
-        return cls.select(cls, Venues.name)
+    def get_as_dict(cls, expr):
+        return cls.select().where(expr).dicts().get()
 
     class Meta:
         managed = False
