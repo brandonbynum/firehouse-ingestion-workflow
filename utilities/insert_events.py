@@ -1,11 +1,11 @@
 from models import Event_Artist, Events, pg_db
 
 def insert_events(event_details: dict):
-        # Create event or get id value
-        event_artist_models = []
-        
-        for key in event_details.keys():
-            event_to_import = event_details[key]
+    event_artist_models = []
+    
+    for key in event_details.keys():
+        event_to_import = event_details[key]
+        try:
             with pg_db.atomic():
                 event_insert = Events.get_or_create(
                     date=event_to_import["date"],
@@ -19,18 +19,23 @@ def insert_events(event_details: dict):
                         "end_at": None
                     }
                 )
+            insert_status = "successful insert" if event_insert[1] else "record already exists"
+            print(f"\n{event_details[key]}\n\t{insert_status}")
                 
             event_artist_models.append({
                 "artist_id": key,
                 "event_id": event_insert[0].id,
             })
-            
-        # TODO (Performance): Add Unique Constraint to event_artist table and insert using 'insert_many'
-        for model in event_artist_models:
-            with pg_db.atomic():
-                event_artist_insert = Event_Artist.get_or_create(
-                    artist_id=model["artist_id"],
-                    event_id=model["event_id"],
-                    defaults={"headliner": True}
-                )
-                print("\n", model, event_artist_insert[1])
+        except Exception as e:
+            print(f"Failed to insert the following event\n\t{event_details[key]}")
+        
+    # TODO (Performance): Add Unique Constraint to event_artist table and insert using 'insert_many'
+    for model in event_artist_models:
+        with pg_db.atomic():
+            event_artist_insert = Event_Artist.get_or_create(
+                artist_id=model["artist_id"],
+                event_id=model["event_id"],
+                defaults={"headliner": True}
+            )
+        insert_status = "successful insert" if event_artist_insert[1] else "record already exists"
+        print(f"\n{model} --> {insert_status}")
