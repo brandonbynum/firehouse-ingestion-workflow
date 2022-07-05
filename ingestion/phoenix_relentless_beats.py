@@ -36,6 +36,7 @@ async def main():
         exit()
     
     events_to_import = {}
+    # TODO: Call detail page of every event, and do an artist check for supporting artists
     for element in all_a_elements:
         print()
         event_html = request_html(element['href'])
