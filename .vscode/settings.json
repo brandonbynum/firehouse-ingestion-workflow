@@ -1,4 +1,6 @@
 {
     "python.formatting.provider": "black",
-    "python.languageServer": "Pylance"
+    "python.languageServer": "Jedi",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }
