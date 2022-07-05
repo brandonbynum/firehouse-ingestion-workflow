@@ -12,6 +12,7 @@ from utilities.request_html import request_html
 from utilities.insert_events import insert_events
 from utilities.convert_str_12hr_to_24hr import convert_str_12hr_to_24hr
 from utilities.insert_events import insert_events
+from utilities.request_html_as_soup import request_html_as_soup
 
 def extract_and_convert_date(soup: BeautifulSoup) -> dict:
     """
@@ -36,27 +37,11 @@ def extract_and_convert_date(soup: BeautifulSoup) -> dict:
         "date": event_date, 
         "time": convert_str_12hr_to_24hr(date_split[2])
     }
-
-def request_html_as_soup(url: str) -> BeautifulSoup:
-    """
-    This function retrieves url's html and converts to BeautifulSoup object.
-    Args:
-        url (str): Location of html
-    Returns:
-        BeautifulSoup: BS4 object of HTML
-    """
-    try:
-        html = requests.get(url).content
-    except Exception as e:
-        print(f"\tFailed to retrieve content: ", e)
-        exit()
-    soup = BeautifulSoup(html, features="html.parser")
-    return soup
     
 #TODO: Turn prints into logs, and test if they print in Actions output window.  
 async def main():
-    """This function retrieves sound nightclub's event data of relevent artists and stores i
-    it in the database.
+    """This function retrieves sound nightclub's event data of relevent artists and stores
+        it in the database.
     """
     url = "http://www.soundnightclub.com/"
     list_soup = request_html_as_soup(url)

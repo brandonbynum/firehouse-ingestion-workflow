@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import *
 from utilities.request_html import request_html
 from utilities.insert_events import insert_events
+from utilities.request_html_as_soup import request_html_as_soup
 
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
@@ -17,13 +18,7 @@ load_dotenv(path.join(basedir, ".env"))
 async def main():
     url = environ.get("EVENT_INGESTION_URL")
 
-    try:
-        html = requests.get(url).content
-    except Exception as e:
-        print(f"\tFailed to retrieve content: ", e)
-        exit()
-        
-    soup = BeautifulSoup(html, features="html.parser")
+    soup = request_html_as_soup(url)
     all_a_elements = soup.find_all("a", class_="small")
     
     if len(all_a_elements) == 0:
