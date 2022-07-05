@@ -28,9 +28,7 @@ def extract_and_convert_date(soup: BeautifulSoup) -> dict:
     date_split_month_num = datetime.strptime(date_split_month, "%b").month
     
     today = datetime.today()
-    todays_month = today.month
-    todays_year = today.year
-    event_year = str(todays_year) if todays_month >= date_split_month_num  else str(todays_year + 1)
+    event_year = str(today.year) if today.month >= date_split_month_num  else str(today.year + 1)
     date_month = date_split[1] + f" {event_year}"
     event_date = str(datetime.strptime(date_month, "%d %b %Y"))
     return {
