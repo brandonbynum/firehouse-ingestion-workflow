@@ -3,7 +3,7 @@ on:
   push:
     branches: [main, develop, feature/*]
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 0 * * 2,4'
 
 jobs:
   run-ingestion:
@@ -57,7 +57,7 @@ jobs:
   test-schedule:
     runs-on: ubuntu-latest
     steps:
-      - name: Not triggered on scheduled daily 12pm run
-        if: github.event.schedule != '0 12 * * *'
+      - name: Not triggered on scheduled daily 12am run
+        if: github.event.schedule != '0 0 * * 2,4'
         run: |
-          echo 'Did not on scheduled 12pm run'
+          echo 'Did not execute on scheduled Tuesday or Thursday 12am run'
