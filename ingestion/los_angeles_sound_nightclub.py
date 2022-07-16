@@ -67,7 +67,11 @@ async def main():
     
     for url in event_soups.keys():
         soup = event_soups[url]
-        artist_names = [name.strip() for name in soup.select('div[class*="EventDetailsLineup__ArtistTitle"]')[0].text.split(",")]
+        try:
+            artist_names = [name.strip() for name in soup.select('div[class*="EventDetailsLineup__ArtistTitle"]')[0].text.split(",")]
+        except Exception as e:
+            print("Failed to extract artist name")
+            
         matching_artists = set(artist_names).intersection(artists_dict.keys())
         
         if len(matching_artists) > 0:
