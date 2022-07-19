@@ -46,12 +46,18 @@ def extract_artist_names(soup, relevant_artists):
                     
                     if ',' in artists_text:
                         for artist_text in artists_text.split(','):
-                            if artists_text in relevant_artists.keys():
-                                artist_id = relevant_artists[artists_text]
+                            artist_stripped = artist_text.strip()
+                            print(artist_stripped)
+                            if artist_stripped in relevant_artists.keys():
+                                print("<--")
+                                artist_id = relevant_artists[artist_stripped]
                                 event_artists[artist_id] = {"headliner": True if billing == "headliner" else False}
                     elif artists_text != '':
-                        if artists_text in relevant_artists.keys():
-                            artist_id = relevant_artists[artists_text]
+                        artist_stripped = artists_text.strip()
+                        print(artist_stripped)
+                        if artist_stripped in relevant_artists.keys():
+                            print("<--")
+                            artist_id = relevant_artists[artist_stripped]
                             event_artists[artist_id] = {"headliner": True if billing == "headliner" else False}
                 except Exception as e:
                     print(f"Failed to extract '{biilling}': {e}")                  
@@ -72,6 +78,7 @@ def extract_city_name(soup):
     try: 
         location_list = soup.find("span", "location").text.split(",")
         city = location_list[0].strip()
+        print(city)
     except:
         print('Error extracting event location value.')
     return city
@@ -179,16 +186,19 @@ async def main():
         exit()
     
     events_to_import = {}
-    for element in all_a_elements[-20:]:
+    for element in all_a_elements:
         event_html = request_html(element['href'])
         event_detail_soup = BeautifulSoup(event_html, features="html.parser")
         
         city_name = extract_city_name(event_detail_soup)
-        if city_name not in relevant_cities:
+        event_artists = extract_artist_names(event_detail_soup, artists_dict)
+        
+        if len(event_artists) == 0:
+            print("No artist found\n")
             continue
         
-        event_artists = extract_artist_names(event_detail_soup, artists_dict)
-        if len(event_artists) == 0:
+        if city_name not in relevant_cities:
+            print()
             continue
           
         event_name = extract_event_name(event_detail_soup)
