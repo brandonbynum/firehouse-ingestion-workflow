@@ -15,8 +15,156 @@ from utilities.request_html_as_soup import request_html_as_soup
 basedir = path.abspath(path.dirname(__file__))
 load_dotenv(path.join(basedir, ".env"))
 
+def extract_artist_names(soup, relevant_artists):
+    """Locate headliner and support act names
+
+    Args:
+        soup (BeautifulSoup): object representing HTML of event detail page
+        relevant_artists (dict): _description_
+
+    Returns:
+        dict: 
+            artist_id (int): artist id in artists table, 
+            headliner (bool): if artist's billing is headliner
+    """
+    event_artists = {}
+    try:
+        p_tags = soup.find_all("p")
+        billings = ["headliner", "support"]
+        billing_finds = 0
+
+        for p_tag in p_tags:
+            if billing_finds == 2:
+                break
+                            
+            if any([item in p_tag.get_text().lower() for item in billings]):
+                billing_finds += 1
+                try:
+                    billing = [item for item in billings if item in p_tag.get_text().lower()][0]
+                    p_tag.strong.clear()
+                    artists_text = p_tag.get_text()
+                    
+                    if ',' in artists_text:
+                        for artist_text in artists_text.split(','):
+                            artist_stripped = artist_text.strip()
+                            print(artist_stripped)
+                            if artist_stripped in relevant_artists.keys():
+                                print("<--")
+                                artist_id = relevant_artists[artist_stripped]
+                                event_artists[artist_id] = {"headliner": True if billing == "headliner" else False}
+                    elif artists_text != '':
+                        artist_stripped = artists_text.strip()
+                        print(artist_stripped)
+                        if artist_stripped in relevant_artists.keys():
+                            print("<--")
+                            artist_id = relevant_artists[artist_stripped]
+                            event_artists[artist_id] = {"headliner": True if billing == "headliner" else False}
+                except Exception as e:
+                    print(f"Failed to extract '{biilling}': {e}")                  
+    except:
+        print('Error extracting event artist.')
+    return event_artists
+
+def extract_city_name(soup):
+    """Locate city name
+
+    Args:
+        soup (BeautifulSoup): object representing HTML of event detail page
+
+    Returns:
+        string: Name of city where event is occurring
+    """
+    city = None
+    try: 
+        location_list = soup.find("span", "location").text.split(",")
+        city = location_list[0].strip()
+        print(city)
+    except:
+        print('Error extracting event location value.')
+    return city
+
+def extract_event_name(soup):
+    """Locate name of event
+
+    Args:
+        soup (BeautifulSoup): object representing HTML of event detail page
+
+    Returns:
+        string: Name of the event
+    """
+    try:
+        name = soup.find(id="event-title").get_text()
+        return name
+    except:
+        print('Error extracting event name.')
+        
+def extract_date(soup):
+    """Locate date and starting time of event
+
+    Args:
+        soup (BeautifulSoup): object representing HTML of event detail page
+
+    Returns:
+        dict: 
+            date: datetime,
+            start_at: string
+    """
+    try:
+        # TODO: Possible Case --- 'June 17-19 2022'
+        date_element = soup.find(id="date")
+        for span in date_element.find_all("span"): span.clear()
+        
+        # Converts format from 'July 3, 2022 at 9:00 PM' to 'YYYY-MM-DD 00:00:00'
+        date_split_at = date_element.text.split('at')
+        date_text = ''.join(date_split_at[0].strip().split(','))
+        date = datetime.strptime(date_text, "%B %d %Y")
+    except:
+        print('Error extracting or transforming event date text.')
+        
+    try:
+        extracted_start_at = date_split_at[1].strip()
+        start_at = time.strftime("%H:%M", time.strptime(extracted_start_at, "%I:%M %p"))
+    except:
+        print('Error extracting start at time from event date value.') 
+        
+    return {'date': date, 'start_at': start_at}           
+        
+def extract_venue(soup):
+    """Locate name of venue
+
+    Args:
+        soup (BeautifulSoup): object representing HTML of event detail page
+
+    Returns:
+        string: name of venue
+    """
+    try:
+        venue = soup.find("span", "venue").text
+        return venue
+    except:
+        print('Error extracting event venue value.')
+        
+def extract_ticket_url(soup):
+    """Locate ticket url
+
+    Args:
+        soup (BeautifulSoup): object representing HTML of event detail page
+
+    Returns:
+        string: url
+    """
+    try:
+        ticket_link = soup.find("a", title="Buy Tickets for")['href']
+        return ticket_link
+    except:
+        print('Error extracting event ticket link value.')
+
+
 async def main():
-    url = environ.get("EVENT_INGESTION_URL")
+    """Retrieves and extracts data from events on RelentlessBeats' event page which have artists
+       or city that exist in the database.
+    """
+    url = "http://relentlessbeats.com/events"
 
     soup = request_html_as_soup(url)
     all_a_elements = soup.find_all("a", class_="small")
@@ -31,102 +179,50 @@ async def main():
     try:
         artists_dict = {artist["name"]: artist["id"] for artist in Artists.get().dicts()}
         cities_dict = {city["name"]: city["id"] for city in Cities.get().dicts()}
+        
+        relevant_cities = cities_dict.keys()
     except Exception as e:
         print(e)
         exit()
     
     events_to_import = {}
-    # TODO: Call detail page of every event, and do an artist check for supporting artists
     for element in all_a_elements:
-        print()
         event_html = request_html(element['href'])
         event_detail_soup = BeautifulSoup(event_html, features="html.parser")
         
-        # ARTIST NAME value extraciton
-        try:
-            # TODO: Possible Case --- 'Rufus Du Sol, Claptone, Green Velvet, Gordo'
-            p_tags = event_detail_soup.find_all("p")
-            for tag in p_tags:
-                strong_tag = tag.find("strong")
-                if "Headliner" in strong_tag.text:
-                    artist = tag
-                    break
-            artist.strong.clear()
-            artist = artist.text
-            print(f"Artist: {artist}")
-        except:
-            print('Error extracting event artist.')
-            
-        # CITY NAME value extraction
-        try: 
-            location_list = event_detail_soup.find("span", "location").text.split(",")
-            city = location_list[0].strip()
-            print(f"City: {city}")
-        except:
-            print('Error extracting event location value.')
+        city_name = extract_city_name(event_detail_soup)
+        event_artists = extract_artist_names(event_detail_soup, artists_dict)
         
-        # Check if event is relevant
-        if artist in artists_dict.keys() and city in cities_dict.keys():    
-            # Extract event title from event element
-            try:
-                title = event_detail_soup.find(id="event-title").text
-                print(f"Title: {title}")
-            except:
-                print('Error extracting event title.')
-            
-            # DATE value extraction
-            try:
-                # TODO: Possible Case --- 'June 17-19 2022'
-                date_element = event_detail_soup.find(id="date")
-                for span in date_element.find_all("span"): span.clear()
-                
-                # Converts format from 'July 3, 2022 at 9:00 PM' to 'YYYY-MM-DD 00:00:00'
-                date_split_at = date_element.text.split('at')
-                date_text = ''.join(date_split_at[0].strip().split(','))
-                date = datetime.strptime(date_text, "%B %d %Y")
-                print(f"Date: {date}")
-            except:
-                print('Error extracting or transforming event date text.')
-                continue
-            
-            # START AT value extraction
-            try:
-                extracted_start_at = date_split_at[1].strip()
-                start_at = time.strftime("%H:%M", time.strptime(extracted_start_at, "%I:%M %p"))
-                print(f"Start at: {start_at}")
-                
-            except:
-                print('Error extracting start at time from event date value.')
-                
-            # VENUE NAME value extraction
-            try:
-                venue = event_detail_soup.find("span", "venue").text
-                print(f"Venue: {venue}")
-            except:
-                print('Error extracting event venue value.')
-                
-            # TICKET LINK value extraction
-            try:
-                ticket_link = event_detail_soup.find("a", title="Buy Tickets for")['href']
-                print(f"Tickets: {ticket_link}")
-            except:
-                print('Error extracting event ticket link value.')
-            
-            
-            venue_id = Venues.get_or_create(
-                name=venue,
-                defaults={"address": "N/A", "city_id": cities_dict[city]}
-            )[0].id
-            
-            events_to_import[artists_dict[artist]] = {
-                "date": date,
-                "city": cities_dict[city],
-                "name": title,
-                "start_at": start_at,
+        if len(event_artists) == 0:
+            print("No artist found\n")
+            continue
+        
+        if city_name not in relevant_cities:
+            print()
+            continue
+          
+        event_name = extract_event_name(event_detail_soup)
+        date = extract_date(event_detail_soup)
+        venue = extract_venue(event_detail_soup)
+        venue_id = Venues.get_or_create(
+            name=venue,
+            defaults={"address": "N/A", "city_id": cities_dict[city_name]}
+        )[0].id
+        ticket_link = extract_ticket_url(event_detail_soup)            
+        
+        for artist_id in event_artists.keys():
+            event_details = {
+                "date": date["date"],
+                "city": cities_dict[city_name],
+                "headliner": event_artists[artist_id]["headliner"],
+                "name": event_name,
+                "start_at": date["start_at"],
                 "ticket_url": ticket_link,
                 "venue_id": venue_id
             }
-            
+            events_to_import[artist_id] = event_details
+            print(f"{event_details}\n")
+        
     insert_events(events_to_import)
     
 if __name__ == "__main__":
