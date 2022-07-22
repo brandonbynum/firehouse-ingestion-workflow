@@ -120,13 +120,16 @@ def extract_date(soup):
         date = datetime.strptime(date_text, "%B %d %Y")
     except:
         print('Error extracting or transforming event date text.')
+        return None
         
     try:
         extracted_start_at = date_split_at[1].strip()
         start_at = time.strftime("%H:%M", time.strptime(extracted_start_at, "%I:%M %p"))
-        return {'date': date, 'start_at': start_at}           
     except:
         print('Error extracting start at time from event date value.') 
+        return None
+    
+    return {'date': date, 'start_at': start_at}           
                 
 def extract_venue(soup):
     """Locate name of venue
@@ -202,6 +205,8 @@ async def main():
           
         event_name = extract_event_name(event_detail_soup)
         date = extract_date(event_detail_soup)
+        if date == None:
+            continue
         venue = extract_venue(event_detail_soup)
         venue_id = Venues.get_or_create(
             name=venue,
