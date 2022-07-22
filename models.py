@@ -140,7 +140,6 @@ class Events(peewee.Model):
     created_on = peewee.DateTimeField()
     date = peewee.DateField(null=True)
     end_at = peewee.TimeField(null=True)
-    is_active = peewee.BooleanField(null=False)
     name = peewee.CharField(max_length=255)
     start_at = peewee.TimeField(null=True)
     tickets_link = peewee.CharField(max_length=255, null=True)

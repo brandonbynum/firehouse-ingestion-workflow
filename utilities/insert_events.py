@@ -14,20 +14,19 @@ def insert_events(event_details: dict):
                     tickets_link=event_to_import["ticket_url"],
                     defaults={
                         "type": "Concert",
-                        "is_active": True,
                         "start_at": event_to_import["start_at"],
                         "end_at": None
                     }
                 )
             insert_status = "successful insert" if event_insert[1] else "record already exists"
-            print(f"\n{event_details[key]}\n\t{insert_status}")
+            print(f"\n{event_details[key]} --> {insert_status}")
                 
             event_artist_models.append({
                 "artist_id": key,
                 "event_id": event_insert[0].id,
             })
         except Exception as e:
-            print(f"Failed to insert the following event\n\t{event_details[key]}")
+            print(f"Failed to insert the following event\n\t{event_details[key]}: {e}")
         
     # TODO (Performance): Add Unique Constraint to event_artist table and insert using 'insert_many'
     for model in event_artist_models:
