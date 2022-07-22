@@ -124,11 +124,10 @@ def extract_date(soup):
     try:
         extracted_start_at = date_split_at[1].strip()
         start_at = time.strftime("%H:%M", time.strptime(extracted_start_at, "%I:%M %p"))
+        return {'date': date, 'start_at': start_at}           
     except:
         print('Error extracting start at time from event date value.') 
-        
-    return {'date': date, 'start_at': start_at}           
-        
+                
 def extract_venue(soup):
     """Locate name of venue
 
