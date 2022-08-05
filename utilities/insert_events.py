@@ -9,11 +9,12 @@ def insert_events(event_details: dict):
             with pg_db.atomic():
                 event_insert = Events.get_or_create(
                     date=event_to_import["date"],
+                    end_date=event_to_import["end_date"],
                     venue_id=event_to_import["venue_id"],
                     name=event_to_import["name"],
                     tickets_link=event_to_import["ticket_url"],
                     defaults={
-                        "type": "Concert",
+                        "type": event_to_import["type"],
                         "start_at": event_to_import["start_at"],
                         "end_at": None
                     }
