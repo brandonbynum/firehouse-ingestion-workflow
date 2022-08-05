@@ -138,7 +138,8 @@ class Venues(peewee.Model):
 
 class Events(peewee.Model):
     created_on = peewee.DateTimeField()
-    date = peewee.DateField(null=True)
+    date = peewee.DateField()
+    end_date = peewee.DateField(null=True)
     end_at = peewee.TimeField(null=True)
     name = peewee.CharField(max_length=255)
     start_at = peewee.TimeField(null=True)
